@@ -1,15 +1,17 @@
 package graf.ethan.gutenberg;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.LineNumberReader;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
+
+/*
+ * FileScanner is an alternative to the Java Scanner class for reading tokens in a file
+ * FileScanner allows for random access file reading while Scanner can only read files sequentially.
+ */
 
 public class FileScanner {
 	public int length;
@@ -19,10 +21,8 @@ public class FileScanner {
 	public FileChannel fileChannel;
 	public byte[] buffer = new byte[1];
 	
-	private static final int EOF = -1;
+	//Delimeters are characters that FileScanner skips over
 	private static final String DELIMITER = " \t\f\r\n";   
-	private static final String TRUE = "true";
-	private static final String FALSE = "false";
 	
 	public FileScanner(File f) {
 		length = (int) f.length();
@@ -33,20 +33,44 @@ public class FileScanner {
 		}
 		catch(FileNotFoundException e) {
 			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		} 
 	}
 	
+	/*
+	 * Reads in the next token as a string. Skips over any whitespace characters preceding it.
+	 */
 	public String next() {
 		StringBuffer res = new StringBuffer();
-		
 		skipWhiteSpace();
 		
 		try {
-			while(!isWhiteSpace((char) buffer[0]) && fileChannel.position() <= length) {
+			res.append((char) buffer[0]);
+			while(fileChannel.position() <= length - 1) {
+				reader.read(buffer, 0, 1);
+				if(!isWhiteSpace((char) buffer[0])) {
+					res.append((char) buffer[0]);
+				}
+				else { 
+					break;
+				}
+			}
+			return res.toString();
+		}
+		catch(IOException ioe){
+			ioe.printStackTrace();
+			return null;
+		}
+	} 
+	
+	public String prev() {
+		StringBuffer res = new StringBuffer();
+		
+		skipPrevWhiteSpace();
+		
+		try {
+			while(!isWhiteSpace((char) buffer[0]) && fileChannel.position() >= 2) {
 				res.append((char) buffer[0]);
+				shiftPosition(-2);
 				reader.read(buffer, 0, 1);
 			}
 			return res.toString();
@@ -57,10 +81,13 @@ public class FileScanner {
 		}
 	}
 	
+	/*
+	 * The "has" functions test whether the next token is off a certain type.
+	 */
 	public boolean hasNextBoolean() {
 		try {
 			Boolean.parseBoolean(next());
-			shiftPosition(-1);
+			shiftTokenPosition(-1);
 			return true;
 		}
 		catch(NumberFormatException e) {
@@ -71,7 +98,7 @@ public class FileScanner {
 	public boolean hasNextInt() {
 		try {
 			Integer.parseInt(next());
-			shiftPosition(-1);
+			shiftTokenPosition(-1);
 			return true;
 		}
 		catch(NumberFormatException e) {
@@ -82,7 +109,7 @@ public class FileScanner {
 	public boolean hasNextShort() {
 		try {
 			Short.parseShort(next());
-			shiftPosition(-1);
+			shiftTokenPosition(-1);
 			return true;
 		}
 		catch(NumberFormatException e) {
@@ -93,7 +120,7 @@ public class FileScanner {
 	public boolean hasNextLong() {
 		try {
 			Long.parseLong(next());
-			shiftPosition(-1);
+			shiftTokenPosition(-1);
 			return true;
 		}
 		catch(NumberFormatException e) {
@@ -104,7 +131,7 @@ public class FileScanner {
 	public boolean hasNextFloat() {
 		try {
 			Float.parseFloat(next());
-			shiftPosition(-1);
+			shiftTokenPosition(-1);
 			return true;
 		}
 		catch(NumberFormatException e) {
@@ -112,6 +139,9 @@ public class FileScanner {
 		}	
 	}
 	
+	/*
+	 * The "next" functions return the next token of a certain type.
+	 */
 	public boolean nextBoolean() {
 		return Boolean.parseBoolean(next());
 	}
@@ -132,6 +162,9 @@ public class FileScanner {
 		return Long.parseLong(next());
 	}
 	
+	/*
+	 * Reads in the next line (to LineReader, not RandomAccessFile).
+	 */
 	public String nextLine() {
 		try {
 			return lineReader.readLine();
@@ -141,6 +174,9 @@ public class FileScanner {
 		}
 	}
 	
+	/*
+	 * Function that skips over whitespace characters.
+	 */
 	public void skipWhiteSpace() {
 		
 		try{
@@ -154,10 +190,27 @@ public class FileScanner {
 		}
 	}
 	
+	public void skipPrevWhiteSpace() {
+		try{
+			shiftPosition(-1);
+			reader.read(buffer, 0, 1);
+			while(isWhiteSpace((char) buffer[0]) && fileChannel.position() >= 2) {
+				shiftPosition(-2);
+				reader.read(buffer, 0, 1);			
+			}
+		}
+		catch(IOException ioe) {
+			ioe.printStackTrace();
+		}
+	}
+	
 	public boolean isWhiteSpace (char character) {
 		return DELIMITER.indexOf((char)character) >= 0;
 	}
 	
+	/*
+	 * Functions for setting and getting position within the file.
+	 */
 	public int getLineNumber() {
 		return lineReader.getLineNumber();
 	}
@@ -166,7 +219,6 @@ public class FileScanner {
 		try {
 			return fileChannel.position();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return 0;
 		}
@@ -186,10 +238,24 @@ public class FileScanner {
 	
 	public void shiftPosition(long offset) {
 		try {
-			fileChannel.position(fileChannel.position() + offset);
+			long newPosition = fileChannel.position() + offset;
+			fileChannel.position(newPosition);
 		}
 		catch(IOException e) {
 			e.printStackTrace();
+		}
+	}
+	
+	public void shiftTokenPosition(long offset) {
+		if(offset > 0) {
+			for(int i = 0; i < offset && getPosition() < length; i ++) {
+				next();
+			}
+		}
+		if(offset < 0) {
+			for(int i = 0; i > offset && getPosition() >= 0; i ++) {
+				prev();
+			}
 		}
 	}
 }
