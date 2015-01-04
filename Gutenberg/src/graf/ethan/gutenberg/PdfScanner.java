@@ -34,14 +34,19 @@ public class PdfScanner {
 		return WHITESPACE.indexOf((char)character) >= 0;
 	}
 	
+	/*
+	 * Scans in a string. The opening parenthesis was already read in.
+	 */
 	public String scanString() {
 		StringBuilder res = new StringBuilder();
 		char next = scanner.nextChar();
 		while(next != ')') {
+			//Reading in escape sequences
 			if(next == '\\') {
 				next = scanner.nextChar();
+				//Octal character codes
 				if(next >= '0' && next <= '7') {
-					StringBuilder octalEscape = new StringBuilder("\\" +  next);
+					StringBuilder octalEscape = new StringBuilder(Character.toString(next));
 					next = scanner.nextChar();
 					if(next >= '0' && next <= '7') {
 						octalEscape.append(next);
@@ -50,8 +55,10 @@ public class PdfScanner {
 							octalEscape.append(next);
 						}
 					}
-					res.append(octalEscape);
+					/* TEMPORARY SOLUTION: DOES NOT RETURN CORRECT STANDARD FOR TEXT ENCODING*/
+					res.append((char) Integer.parseInt(octalEscape.toString()));
 				}
+				//Special escape sequences 
 				else {
 					switch(next) {
 					case 'n':
@@ -77,6 +84,13 @@ public class PdfScanner {
 						break;
 					case '\\':
 						res.append('\\');
+						break;
+					case '\r':
+						next = scanner.nextChar();
+						if(next == '\n') {
+							break;
+						}
+						res.append('\r');
 						break;
 					}
 				}
