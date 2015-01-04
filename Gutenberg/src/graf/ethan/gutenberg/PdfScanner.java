@@ -40,7 +40,15 @@ public class PdfScanner {
 	public String scanString() {
 		StringBuilder res = new StringBuilder();
 		char next = scanner.nextChar();
-		while(next != ')') {
+		int parenthesis = 0;
+		while(next != ')' || parenthesis > 0) {
+			//If parentheses are balanced, they are valid.
+			if(next == '(') {
+				parenthesis ++;
+			}
+			if(next == ')') {
+				parenthesis --;
+			}
 			//Reading in escape sequences
 			if(next == '\\') {
 				next = scanner.nextChar();

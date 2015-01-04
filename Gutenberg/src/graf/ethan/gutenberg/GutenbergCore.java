@@ -37,5 +37,7 @@ public class GutenbergCore {
     	System.out.println(pdfScanner.scanString());
     	pdfScanner.skipWhiteSpace();
     	System.out.println(pdfScanner.scanString());
+    	pdfScanner.skipWhiteSpace();
+    	System.out.println(pdfScanner.scanString());
     }
 } 
