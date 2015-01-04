@@ -7,6 +7,7 @@ public class PdfScanner {
 	//White-space and delimiter characters in PDF
 	private static final String WHITESPACE = " \0\t\n\f\r";
 	private static final String DELIMITER = "()<>[]{}/%";
+	private static final String HEX = "0123456789ABCDEFabcdef";
 	
 	//PDF keywords
 	private static final String OBJ = "obj";
@@ -112,8 +113,29 @@ public class PdfScanner {
 	}
 	
 	public String scanHexString() {
-		String res = new String();
-		return res;
+		StringBuilder res = new StringBuilder();
+		StringBuilder hex = new StringBuilder();
+		char next = scanner.nextChar();
+		while(next != '>') {		
+			if(HEX.indexOf((char)next) >= 0) {
+				if(hex.length() >= 2) {
+					res.append((char) Integer.parseInt(hex.toString(), 16));
+					hex = new StringBuilder();
+					if(HEX.indexOf((char)next) >= 0) {
+						hex.append(next);
+					}
+				}
+				else {
+					hex.append(next);
+				}
+			}
+			next = scanner.nextChar();
+		}
+		if(hex.length() == 1) {
+			hex.append('0');
+		}
+		res.append((char) Integer.parseInt(hex.toString(), 16));
+		return res.toString();
 	}
 	
 	public String scanName() {
