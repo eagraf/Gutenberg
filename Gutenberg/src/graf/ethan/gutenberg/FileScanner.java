@@ -142,6 +142,17 @@ public class FileScanner {
 	/*
 	 * The "next" functions return the next token of a certain type.
 	 */
+	public char nextChar() {
+		try {
+			reader.read(buffer, 0, 1);
+			return (char) buffer[0];
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return 0;
+		}
+	}
+	
 	public boolean nextBoolean() {
 		return Boolean.parseBoolean(next());
 	}

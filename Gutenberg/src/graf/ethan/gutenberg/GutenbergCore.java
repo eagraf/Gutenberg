@@ -25,22 +25,15 @@ public class GutenbergCore {
         System.out.println("stop");
         is.close();*/
     	
-    	File f = new File("C:\\Users\\Ethan\\Desktop\\PDF Test\\PdfScannerTest2.txt");
+    	File f = new File("C:\\Users\\Ethan\\Desktop\\PDF Test\\StringTest.txt");
     	
     	FileScanner scanner = new FileScanner(f);
     	PdfScanner pdfScanner = new PdfScanner(scanner);
     	
-    	try {
-			System.out.println(pdfScanner.scanString());
-		} catch (NotCorrectPdfTypeException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-    	try {
-			System.out.println(pdfScanner.scanName());
-		} catch (NotCorrectPdfTypeException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+    	System.out.println(pdfScanner.scanString());
+    	pdfScanner.skipWhiteSpace();
+    	System.out.println(pdfScanner.scanString());
+    	pdfScanner.skipWhiteSpace();
+    	System.out.println(pdfScanner.scanString());
     }
 } 
