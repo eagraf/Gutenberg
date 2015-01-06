@@ -25,19 +25,25 @@ public class GutenbergCore {
         System.out.println("stop");
         is.close();*/
     	
-    	File f = new File("C:\\Users\\Ethan\\Desktop\\PDF Test\\KeywordTest.txt");
+    	File f = new File("C:\\Users\\Ethan\\Desktop\\PDF Test\\NumericTest.txt");
     	
     	FileScanner scanner = new FileScanner(f);
     	PdfScanner pdfScanner = new PdfScanner(scanner);
     	
-    	System.out.println(pdfScanner.scanKeyword());
-    	System.out.println(pdfScanner.scanKeyword());
-    	System.out.println(pdfScanner.scanKeyword());
-    	System.out.println(pdfScanner.scanKeyword());
-    	System.out.println(pdfScanner.scanKeyword());
-    	System.out.println(pdfScanner.scanKeyword());
-    	System.out.println(pdfScanner.scanKeyword());
-    	System.out.println(pdfScanner.scanKeyword());
-    	System.out.println(pdfScanner.scanKeyword());
+    	System.out.println(pdfScanner.scanNumeric());
+    	pdfScanner.skipWhiteSpace();
+    	System.out.println(pdfScanner.scanNumeric());
+    	pdfScanner.skipWhiteSpace();
+    	System.out.println(pdfScanner.scanNumeric());
+    	pdfScanner.skipWhiteSpace();
+    	System.out.println(pdfScanner.scanNumeric());
+    	pdfScanner.skipWhiteSpace();
+    	System.out.println(pdfScanner.scanNumeric());
+    	pdfScanner.skipWhiteSpace();
+    	System.out.println(pdfScanner.scanNumeric());
+    	pdfScanner.skipWhiteSpace();
+    	System.out.println(pdfScanner.scanNumeric());
+    	pdfScanner.skipWhiteSpace();
+    	System.out.println(pdfScanner.scanNumeric());
     }
 } 

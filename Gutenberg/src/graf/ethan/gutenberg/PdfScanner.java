@@ -3,13 +3,20 @@ package graf.ethan.gutenberg;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+/*
+ * PdfScanner reads in PDF objects, keywords and operators.
+ */
+
 public class PdfScanner {
 	//White-space and delimiter characters in PDF
 	private static final String WHITESPACE = " \0\t\n\f\r";
 	private static final String DELIMITER = "()<>[]{}/%";
+	private static final String NUMERAL = "0123456789.+-";
 	private static final String HEX = "0123456789ABCDEFabcdef";
 	
 	//PDF keywords
+	private static final String TRUE = "true";
+	private static final String FALSE = "false";
 	private static final String OBJ = "obj";
 	private static final String ENDOBJ = "endobj";
 	private static final String STREAM = "stream";
@@ -23,17 +30,54 @@ public class PdfScanner {
 		this.scanner = scanner;
 	}
 	
-	public void skipWhiteSpace() {
-		char next = scanner.nextChar();
-		while(isWhiteSpace(next)) {
-			next = scanner.nextChar();
+	/*
+	 * Returns an integer that denotes the type of keyword. 8 signifies not a keyword.
+	 */
+	public int scanKeyword() {
+		String next = scanner.next();
+		switch(next) {
+			case TRUE:
+				return 0;
+			case FALSE:
+				return 1;
+			case OBJ:
+				return 2;
+			case ENDOBJ:
+				return 3;
+			case STREAM:
+				return 4;
+			case ENDSTREAM:
+				return 5;
+			case XREF:
+				return 6;
+			case TRAILER:
+				return 7;
+			default:
+				return 8;
 		}
-		scanner.shiftPosition(-1);
 	}
 	
-	public boolean isWhiteSpace(char character) {
-		return WHITESPACE.indexOf((char)character) >= 0;
-	}
+	/*
+	 * Scans in a numeric object, either an Integer(int) of Real(float).
+	 */
+ 	public Number scanNumeric() {
+ 		boolean isFloat = false;
+ 		StringBuilder res = new StringBuilder();
+ 		char next = scanner.nextChar();
+ 		while(NUMERAL.indexOf(next) >= 0) {
+ 			if(next == '.') {
+ 				isFloat = true;
+ 			}
+ 			res.append(next);
+ 			next = scanner.nextChar();
+ 		}
+ 		if(isFloat) {
+ 			return Float.parseFloat(res.toString());
+ 		}
+ 		else {
+ 			return Integer.parseInt(res.toString());
+ 		}	
+ 	}
 	
 	/*
 	 * Scans in a string. The opening parenthesis was already read in.
@@ -112,6 +156,10 @@ public class PdfScanner {
 		return res.toString();
 	}
 	
+	/*
+	 * Scans in a string represented by two hexadecimal numerals. Skips non-hex characters and appends a 0 
+	 * at the end if there are an odd number of hex numerals.
+	 */
 	public String scanHexString() {
 		StringBuilder res = new StringBuilder();
 		StringBuilder hex = new StringBuilder();
@@ -138,12 +186,52 @@ public class PdfScanner {
 		return res.toString();
 	}
 	
+	/*
+	 * Scans in a name denoted by a '/' preceding it. 
+	 */
 	public String scanName() {
-		String res = new String();
-		return res;
+		StringBuilder res = new StringBuilder();
+		char next = scanner.nextChar();
+		while(!isWhiteSpace(next)) {
+			if(next == '#') {
+				StringBuilder hex = new StringBuilder();
+				next = scanner.nextChar();
+				if(HEX.indexOf(next) >= 0) {
+					hex.append(next);
+					next = scanner.nextChar();
+					if(HEX.indexOf(next) >= 0) {
+						hex.append(next);
+					}
+					res.append((char) Integer.parseInt(hex.toString(), 16));
+				}
+				if(hex.length() == 0) {
+					res.append('#');
+					res.append(next);
+				}
+			}
+			else if(!(DELIMITER.indexOf(next) >= 0)) {
+				res.append(next);
+			}
+			else {
+				return res.toString();
+			}
+			next = scanner.nextChar();
+		}
+		
+		return res.toString();
 	}
 	
-	public ArrayList<Object> scanArray() {
+	/*
+	 * Read everything from the comment until the newline.
+	 */
+	public void scanComment() {
+		char next = scanner.nextChar();
+		while(next != '\n') {
+			next = scanner.nextChar();
+		}
+	}
+	
+	public ArrayList<Object> scanArray() { 
 		ArrayList<Object> res = new ArrayList<>();
 		return res;
 	}
@@ -153,6 +241,21 @@ public class PdfScanner {
 		return res;
 	}
 	
+	/* 
+	 * Skip white-space characters until the next object
+	 */
+	public void skipWhiteSpace() {
+		char next = scanner.nextChar();
+		while(isWhiteSpace(next)) {
+			next = scanner.nextChar();
+		}
+		scanner.shiftPosition(-1);
+	}
 	
-	
+	/*
+	 * Simple function for determining whether a character is white-space.
+	 */
+	public boolean isWhiteSpace(char character) {
+		return WHITESPACE.indexOf((char)character) >= 0;
+	}
 }

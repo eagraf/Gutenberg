@@ -21,7 +21,7 @@ public class FileScanner {
 	public FileChannel fileChannel;
 	public byte[] buffer = new byte[1];
 	
-	//Delimeters are characters that FileScanner skips over
+	//Delimiters are characters that FileScanner skips over
 	private static final String DELIMITER = " \t\f\r\n";   
 	
 	public FileScanner(File f) {
@@ -42,7 +42,6 @@ public class FileScanner {
 	public String next() {
 		StringBuffer res = new StringBuffer();
 		skipWhiteSpace();
-		
 		try {
 			res.append((char) buffer[0]);
 			while(fileChannel.position() <= length - 1) {
