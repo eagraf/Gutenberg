@@ -25,6 +25,7 @@ public class PdfScanner {
 	private static final String ENDSTREAM = "endstream";
 	private static final String XREF = "xref";
 	private static final String TRAILER = "trailer";
+	private static final String REFERENCE = "R";
 	
 	private FileScanner scanner;
 	
@@ -32,6 +33,9 @@ public class PdfScanner {
 		this.scanner = scanner;
 	}
 	
+	/*
+	 * Scans the next object in the file.
+	 */
 	public Object scanNext() {
 		skipWhiteSpace();
 		char next =  scanner.nextChar();
@@ -61,8 +65,24 @@ public class PdfScanner {
 			}	
 		}
 		if(NUMERAL.indexOf(next) >= 0) {
-			scanner.shiftPosition(-1);
-			return scanNumeric();
+			long position = scanner.getPosition() - 1;
+			//See if the int is part of an object reference
+			skipWhiteSpace();
+			try {
+				scanner.nextInt();
+				if(scanKeyword() == 8) {
+					scanner.setPosition(position);
+					return scanObjectReference();
+				}
+				else {
+					scanner.setPosition(position);
+					return scanNumeric();
+				}
+			}
+			catch(NumberFormatException e) {
+				scanner.setPosition(position);
+				return scanNumeric();
+			}			
 		}
 		else {
 			scanner.shiftPosition(-1);
@@ -88,7 +108,7 @@ public class PdfScanner {
 	}
 	
 	/*
-	 * Returns an integer that denotes the type of keyword. 8 signifies not a keyword.
+	 * Returns an integer that denotes the type of keyword. 9 signifies not a keyword.
 	 */
 	public int scanKeyword() {
 		String next = scanner.next();
@@ -109,8 +129,10 @@ public class PdfScanner {
 				return 6;
 			case TRAILER:
 				return 7;
-			default:
+			case REFERENCE:
 				return 8;
+			default:
+				return 9;
 		}
 	}
 	
@@ -287,6 +309,9 @@ public class PdfScanner {
 		}
 	}
 	
+	/*
+	 * Scans in an array object.
+	 */
 	public ArrayList<Object> scanArray() { 
 		ArrayList<Object> res = new ArrayList<>();
 		skipWhiteSpace();
@@ -300,6 +325,9 @@ public class PdfScanner {
 		return res;
 	}
 	
+	/*
+	 * Scans in a dictionary.
+	 */
 	public HashMap<String, Object> scanDictionary() {
 		HashMap<String, Object> res = new HashMap<>();
 		skipWhiteSpace();
@@ -322,6 +350,9 @@ public class PdfScanner {
 		return res;
 	}
 	
+	/*
+	 * Scans in an indirect object.
+	 */
 	public PdfObject scanObject() {
 		PdfObject res;
 		Object object;
@@ -347,6 +378,23 @@ public class PdfScanner {
 			res = null;
 		}
 		return res;
+	}
+	
+	public PdfObjectReference scanObjectReference() {
+		int objectNumber;
+		int generationNumber;
+		
+		skipWhiteSpace();
+		objectNumber = (int) scanNumeric();
+		skipWhiteSpace();
+		generationNumber = (int) scanNumeric();
+		skipWhiteSpace();
+		if(scanner.nextChar() == 'R') {
+			return new PdfObjectReference(objectNumber, generationNumber);
+		}
+		else {
+			return null;
+		}
 	}
 	
 	/* 
