@@ -322,6 +322,33 @@ public class PdfScanner {
 		return res;
 	}
 	
+	public PdfObject scanObject() {
+		PdfObject res;
+		Object object;
+		int objectNumber;
+		int generationNumber;
+		
+		skipWhiteSpace();
+		objectNumber = (int) scanNumeric();
+		skipWhiteSpace();
+		generationNumber = (int) scanNumeric();
+		skipWhiteSpace();
+		if(scanKeyword() == 2) {
+			object = scanNext();
+		}
+		else {
+			object = null;
+		}
+		skipWhiteSpace();
+		if(scanKeyword() == 3) {
+			res = new PdfObject(objectNumber, generationNumber, object);
+		}
+		else {
+			res = null;
+		}
+		return res;
+	}
+	
 	/* 
 	 * Skip white-space characters until the next object
 	 */

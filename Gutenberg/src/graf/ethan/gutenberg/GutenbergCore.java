@@ -25,12 +25,12 @@ public class GutenbergCore {
         System.out.println("stop");
         is.close();*/
     	
-    	File f = new File("C:\\Users\\Ethan\\Desktop\\PDF Test\\ArrayTest.txt");
+    	File f = new File("C:\\Users\\Ethan\\Desktop\\PDF Test\\ObjectTest.txt");
     	
     	FileScanner scanner = new FileScanner(f);
     	PdfScanner pdfScanner = new PdfScanner(scanner);
     	
-    	System.out.println(pdfScanner.scanNext());
+    	System.out.println(pdfScanner.scanObject());
     	//System.out.println(pdfScanner.scanNext().toString());
     	
     }
