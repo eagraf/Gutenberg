@@ -11,6 +11,8 @@ public class PdfScanner {
 	//White-space and delimiter characters in PDF
 	private static final String WHITESPACE = " \0\t\n\f\r";
 	private static final String DELIMITER = "()<>[]{}/%";
+	private static final String DELIMITEROPEN = "(<[{/%";
+	private static final String DELIMITERCLOSE = ")>]}";
 	private static final String NUMERAL = "0123456789.+-";
 	private static final String HEX = "0123456789ABCDEFabcdef";
 	
@@ -30,15 +32,70 @@ public class PdfScanner {
 		this.scanner = scanner;
 	}
 	
+	public Object scanNext() {
+		skipWhiteSpace();
+		char next =  scanner.nextChar();
+		if(DELIMITEROPEN.indexOf(next) >= 0) {
+			switch(next) {
+				case '(':
+					String resString = scanString();
+					return resString;
+				case '<':
+					next = scanner.nextChar();
+					if(next == '<') {
+						return scanDictionary();
+					}
+					else {
+						scanner.shiftPosition(-1);
+						return scanHexString();
+					}
+				case '%':
+					scanComment();
+					break;
+				case '[':
+					return scanArray();
+				case '/':
+					return scanName();
+				default:
+					return null;
+			}	
+		}
+		if(NUMERAL.indexOf(next) >= 0) {
+			scanner.shiftPosition(-1);
+			return scanNumeric();
+		}
+		else {
+			scanner.shiftPosition(-1);
+			int keyWord = scanKeyword();
+			switch(keyWord) {
+				case 0:
+					return false;
+				case 1:
+					return true;
+				case 2:
+					//scanObject
+				case 4:
+					//scanStream
+				case 6:
+					//scanXref
+				case 7:
+					//scanTrailer
+				case 8:
+					return null;
+			}
+		}
+		return null;
+	}
+	
 	/*
 	 * Returns an integer that denotes the type of keyword. 8 signifies not a keyword.
 	 */
 	public int scanKeyword() {
 		String next = scanner.next();
 		switch(next) {
-			case TRUE:
-				return 0;
 			case FALSE:
+				return 0;
+			case TRUE:
 				return 1;
 			case OBJ:
 				return 2;
@@ -217,7 +274,6 @@ public class PdfScanner {
 			}
 			next = scanner.nextChar();
 		}
-		
 		return res.toString();
 	}
 	
@@ -233,11 +289,36 @@ public class PdfScanner {
 	
 	public ArrayList<Object> scanArray() { 
 		ArrayList<Object> res = new ArrayList<>();
+		skipWhiteSpace();
+		char next = scanner.nextChar();
+		while(next != ']') {
+			scanner.shiftPosition(-1);
+			res.add(scanNext());
+			skipWhiteSpace();
+			next = scanner.nextChar();
+		}
 		return res;
 	}
 	
 	public HashMap<String, Object> scanDictionary() {
 		HashMap<String, Object> res = new HashMap<>();
+		skipWhiteSpace();
+		char next = scanner.nextChar();
+		while(next != '>') {
+			String key;
+			if(next == '/') {
+				key = scanName();
+			}
+			else {
+				key = "NO_KEY";
+			}
+			Object value = scanNext();
+			skipWhiteSpace();
+			res.put(key, value);
+			next = scanner.nextChar();
+		}	
+		
+		scanner.nextChar();
 		return res;
 	}
 	
