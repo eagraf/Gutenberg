@@ -24,6 +24,7 @@ public class PdfScanner {
 	private static final String STREAM = "stream";
 	private static final String ENDSTREAM = "endstream";
 	private static final String XREF = "xref";
+	private static final String STARTXREF = "startxref";
 	private static final String TRAILER = "trailer";
 	private static final String REFERENCE = "R";
 	
@@ -70,7 +71,7 @@ public class PdfScanner {
 			skipWhiteSpace();
 			try {
 				scanner.nextInt();
-				if(scanKeyword() == 8) {
+				if(scanKeyword() == 9) {
 					scanner.setPosition(position);
 					return scanObjectReference();
 				}
@@ -108,7 +109,7 @@ public class PdfScanner {
 	}
 	
 	/*
-	 * Returns an integer that denotes the type of keyword. 9 signifies not a keyword.
+	 * Returns an integer that denotes the type of keyword. 10 signifies not a keyword.
 	 */
 	public int scanKeyword() {
 		String next = scanner.next();
@@ -127,12 +128,14 @@ public class PdfScanner {
 				return 5;
 			case XREF:
 				return 6;
-			case TRAILER:
+			case STARTXREF:
 				return 7;
-			case REFERENCE:
+			case TRAILER:
 				return 8;
-			default:
+			case REFERENCE:
 				return 9;
+			default:
+				return 10;
 		}
 	}
 	

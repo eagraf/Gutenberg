@@ -2,35 +2,24 @@ package graf.ethan.gutenberg;
 
 import java.io.*;
 
+import javax.swing.JFrame;
+
 public class GutenbergCore {
  
     public static void main(String[] args) throws IOException {
-    	/*
-        File f=new File("C:\\Users\\Ethan\\Desktop\\PDF Test\\minimal.pdf");
- 
-        OutputStream oos = new FileOutputStream("C:\\Users\\Ethan\\Desktop\\PDF Test\\output.txt");
- 
-        byte[] buf = new byte[8192];
- 
-        InputStream is = new FileInputStream(f);
- 
-        int c = 0;
- 
-        while ((c = is.read(buf, 0, buf.length)) > 0) {
-            oos.write(buf, 0, c);
-            oos.flush();
-        } 
- 
-        oos.close();
-        System.out.println("stop");
-        is.close();*/
+    	//Creates the content frame
+    	JFrame frame = new JFrame("Gutenberg");
+    	frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    	frame.pack();
+    	frame.setVisible(true);
     	
-    	File f = new File("C:\\Users\\Ethan\\Desktop\\PDF Test\\ObjectTest.txt");
+    	File f = new File("C:\\Users\\Ethan\\Desktop\\PDF Test\\minimal.pdf");
     	
     	FileScanner scanner = new FileScanner(f);
     	PdfScanner pdfScanner = new PdfScanner(scanner);
+    	GutenbergScanner gScanner = new GutenbergScanner(f);
     	
-    	System.out.println(pdfScanner.scanObject());
+    	gScanner.firstPass();
     	//System.out.println(pdfScanner.scanNext().toString());
     	
     }

@@ -177,7 +177,7 @@ public class FileScanner {
 	 */
 	public String nextLine() {
 		try {
-			return lineReader.readLine();
+			return reader.readLine();
 		} catch (IOException e) {
 			e.printStackTrace();
 			return null;
