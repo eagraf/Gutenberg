@@ -28,7 +28,7 @@ public class PdfScanner {
 	private static final String TRAILER = "trailer";
 	private static final String REFERENCE = "R";
 	
-	private FileScanner scanner;
+	public FileScanner scanner;
 	
 	public PdfScanner(FileScanner scanner) {
 		this.scanner = scanner;
@@ -71,7 +71,7 @@ public class PdfScanner {
 			skipWhiteSpace();
 			try {
 				scanner.nextInt();
-				if(scanKeyword() == 9) {
+				if(scanner.nextChar() == 'R') {
 					scanner.setPosition(position);
 					return scanObjectReference();
 				}
@@ -153,12 +153,26 @@ public class PdfScanner {
  			res.append(next);
  			next = scanner.nextChar();
  		}
+ 		scanner.shiftPosition(-1);
  		if(isFloat) {
  			return Float.parseFloat(res.toString());
  		}
  		else {
  			return Integer.parseInt(res.toString());
  		}	
+ 	}
+ 	
+ 	/*
+ 	 *Scans a long number
+ 	 */
+ 	public Number scanLong() {
+ 		StringBuilder res = new StringBuilder();
+ 		char next = scanner.nextChar();
+ 		while(NUMERAL.indexOf(next) >= 0) {
+ 			res.append(next);
+ 			next = scanner.nextChar();
+ 		}
+ 		return Long.parseLong(res.toString());
  	}
 	
 	/*

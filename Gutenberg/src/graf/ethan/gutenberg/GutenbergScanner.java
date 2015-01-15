@@ -3,6 +3,7 @@ package graf.ethan.gutenberg;
 import java.io.File;
 import java.io.IOException;
 import java.io.LineNumberReader;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class GutenbergScanner {
@@ -13,14 +14,22 @@ public class GutenbergScanner {
 	
 	public FileScanner fileScanner;
 	public PdfScanner pdfScanner;
+	public CrossReferenceScanner crossScanner;
 	
 	public long trailerPos;
 	public long startXrefPos;
-	public HashMap<Integer, Long> xrefs;
+	public ArrayList<CrossReferenceSection> xrefs;
+	
+	public HashMap<String, Object> trailer;
+	public HashMap<String, Object> catalog;
+	public HashMap<String, Object> pageTree;
 	
 	public GutenbergScanner(File f) {
 		fileScanner = new FileScanner(f);
 		pdfScanner = new PdfScanner(fileScanner);
+		firstPass();
+		crossScanner = new CrossReferenceScanner(pdfScanner, xrefs);
+		scanCatalog();
 	}
 	
 	public void getVersion() {
@@ -29,19 +38,21 @@ public class GutenbergScanner {
 	
 	public void firstPass() {
 		String nextLine = fileScanner.nextLine();
-		xrefs = new HashMap<Integer, Long>();
-		int xCount = 0;
+		xrefs = new ArrayList<>();
 		while(nextLine != null) {
 			switch(nextLine) {
 				case TRAILER:
 					trailerPos = fileScanner.getPosition();
 					pdfScanner.skipWhiteSpace();
-					HashMap trailer = (HashMap) pdfScanner.scanNext();
+					trailer = (HashMap) pdfScanner.scanNext();
 					System.out.println(trailer);
 					break;
 				case XREF:
-					xrefs.put(xCount, fileScanner.getPosition());
-					xCount ++;
+					pdfScanner.skipWhiteSpace();
+					int startNum = (int) pdfScanner.scanNumeric();
+					pdfScanner.skipWhiteSpace();
+					int length = (int) pdfScanner.scanNumeric();
+					xrefs.add(new CrossReferenceSection(startNum, length, fileScanner.getPosition()));
 					break;
 				case STARTXREF:
 					startXrefPos = fileScanner.getPosition();
@@ -49,5 +60,38 @@ public class GutenbergScanner {
 				}
 			nextLine = fileScanner.nextLine();
 		}
+		
+	}
+	
+	public void scanCatalog() {
+		catalog = (HashMap<String, Object>) crossScanner.getObject(((PdfObjectReference) trailer.get("Root")));
+		pageTree = (HashMap<String, Object>) crossScanner.getObject(((PdfObjectReference) catalog.get("Pages")));
+		System.out.println(catalog);
+		System.out.println(pageTree);
+		
+		//System.out.println(crossScanner.getObject(((PdfObjectReference) catalog.get("Pages"))));
+	}
+	
+	public Page getPage() {
+		HashMap<String, Object> pageObject = (HashMap) crossScanner.getObject((PdfObjectReference) ((ArrayList) pageTree.get("Kids")).get(0));
+		ArrayList<Integer> rect = getMediaBox(pageObject);
+		int width = rect.get(2) - rect.get(0);
+		int height = rect.get(3) - rect.get(1);
+		
+		HashMap<String, Object> resources = (HashMap<String, Object>) pageObject.get("Resources");
+		System.out.println(resources);
+		
+		return new Page(width, height);
+	}
+	
+	public ArrayList<Integer> getMediaBox(HashMap<String, Object> node) {
+		ArrayList<Integer> rect;
+		if(node.containsKey("MediaBox")) {
+			rect = (ArrayList) node.get("MediaBox");
+		}
+		else {
+			rect = getMediaBox((HashMap<String, Object>) crossScanner.getObject((PdfObjectReference) node.get("Parent")));
+		}
+		return rect;
 	}
 }
