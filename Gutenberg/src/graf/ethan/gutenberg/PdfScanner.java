@@ -3,319 +3,439 @@ package graf.ethan.gutenberg;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-public class PdfScanner {
-	FileScanner scanner;
+/*
+ * PdfScanner reads in PDF objects, keywords and operators.
+ */
 
+public class PdfScanner {
+	//White-space and delimiter characters in PDF
+	private static final String WHITESPACE = " \0\t\n\f\r";
+	private static final String DELIMITER = "()<>[]{}/%";
+	private static final String DELIMITEROPEN = "(<[{/%";
+	private static final String NUMERAL = "0123456789.+-";
+	private static final String HEX = "0123456789ABCDEFabcdef";
+	
+	//PDF keywords
+	private static final String TRUE = "true";
+	private static final String FALSE = "false";
+	private static final String OBJ = "obj";
+	private static final String ENDOBJ = "endobj";
+	private static final String STREAM = "stream";
+	private static final String ENDSTREAM = "endstream";
+	private static final String XREF = "xref";
+	private static final String STARTXREF = "startxref";
+	private static final String TRAILER = "trailer";
+	private static final String REFERENCE = "R";
+	
+	public FileScanner scanner;
+	
 	public PdfScanner(FileScanner scanner) {
 		this.scanner = scanner;
 	}
-	/*
-	 * Gets the type of the next token
-	 *  0: Boolean 1: Integer 2: Float 3: String 4: Name 5: Array 6: Dictionary 7: Stream 8: Null 9: ObjectReference 10: Object 11: Not Object
-	 */
-	public int nextType() {
-		String next = scanner.next();
-		char nextCharArray[] = next.toCharArray();
-		//scanner.shiftTokenPosition(-1);
-		
-		if(next == "true" || next == "false") {
-			return 0;
-		}
-		if(scanner.hasNextInt()) {
-			//scanner.shiftTokenPosition(1);
-			if(scanner.hasNextInt()) {
-				//scanner.shiftTokenPosition(1);
-				if(scanner.next() == "R") {
-					//scanner.shiftTokenPosition(-2);
-					return 9;
-				}
-				if(scanner.next() == "obj") {
-					//scanner.shiftTokenPosition(-2);
-					return 10;
-				}
-		//		scanner.shiftTokenPosition(-1);
-				return 1;
-			}
-			return 1;
-		}
-		if(scanner.hasNextFloat()) {
-			return 2;
-		}
-		if(nextCharArray[0] == '(' && nextCharArray[nextCharArray.length - 1] == ')') {
-			return 3;
-		}
-		if(nextCharArray[0] == '/') {
-			return 4;
-		}
-		if(nextCharArray[0] == '[') {
-			return 5;
-		}
-		if(next == "<<") {
-			return 6;
-		}
-		if(next == "stream") {
-			return 7;
-		}
-		if(next == "null") {
-			return 8;
-		}
-		return 11;
-	}
 	
 	/*
-	 * Gets the type of the next token
-	 *  0: Boolean 1: Integer or ObjectReference or Object 2: Float 3: String 4: Name 5: Array 6: Dictionary 7: Stream 8: Null 11: Not Object
+	 * Scans the next object in the file.
 	 */
-	public int getType(String token) {
-		char tokenCharArray[] = token.toCharArray();
-		scanner.shiftTokenPosition(-1);
-		
-		if(token == "true" || token == "false") {
-			return 0;
-		}
-		if(tokenCharArray[0] == '(' && tokenCharArray[tokenCharArray.length - 1] == ')') {
-			return 3;
-		}
-		if(tokenCharArray[0] == '/') {
-			return 4;
-		}
-		if(tokenCharArray[0] == '[') {
-			return 5;
-		}
-		if(token == "<<") {
-			return 6;
-		}
-		if(token == "stream") {
-			return 7;
-		}
-		if(token == "null") {
-			return 8;
-		}
-		try {
-			Integer.parseInt(token);
-			return 1;
-		}
-		catch(NumberFormatException e) {
-			try {
-				Float.parseFloat(token);
-				return 2;
-			}
-			catch(NumberFormatException i) {
-				return 10;
-			}
-		}
-	}
-	
-	public Object scanNextObject() throws NotCorrectPdfTypeException {
-		String next = scanner.next();
-		StringBuilder stringBuilder = new StringBuilder(next);
-		int type = nextType();
-		
-		if(stringBuilder.charAt(0) == '/' && type == 4) {
-			stringBuilder.deleteCharAt(0);
-		}
-		if(stringBuilder.charAt(0) == '(' && stringBuilder.charAt(stringBuilder.length() - 1) == ')' && type == 3) {
-			stringBuilder.deleteCharAt(stringBuilder.length() - 1);
-			stringBuilder.deleteCharAt(0);
-		}
-		
-		switch(type) {
-			case 0:
-				boolean bool = Boolean.parseBoolean(stringBuilder.toString());
-				return bool;
-			case 1:
-				return Integer.parseInt(stringBuilder.toString());
-			case 2:
-				return Float.parseFloat(stringBuilder.toString());
-			case 3:
-				return stringBuilder.toString();
-			case 4:
-				return stringBuilder.toString();
-			case 5:
-				try {
-					scanner.shiftTokenPosition(-1);
+	public Object scanNext() {
+		skipWhiteSpace();
+		char next =  scanner.nextChar();
+		//Checks to see if next is an opening delimiter. If so, the appropriate method is called.
+		if(DELIMITEROPEN.indexOf(next) >= 0) {
+			switch(next) {
+				//Strings (String)
+				case '(':
+					String resString = scanString();
+					return resString;
+				//Hex-string <12AE3BC2930>
+				case '<':
+					next = scanner.nextChar();
+					//If there is a second '<', then the next object is a dictionary.
+					if(next == '<') {
+						return scanDictionary();
+					}
+					else {
+						scanner.shiftPosition(-1);
+						return scanHexString();
+					}
+				//Comment %Comment
+				case '%':
+					scanComment();
+					break;
+				//Array [2 4 45.3 true 2 0 R]
+				case '[':
 					return scanArray();
-				}
-				catch (NotCorrectPdfTypeException e) {
-					e.printStackTrace();
-				}
-			case 6:
-				try {
-					return scanDictionary();
-				}
-				catch(NotCorrectPdfTypeException e){
-					e.printStackTrace();
-				}
-			case 8:
-				return null;
-			case 9:
-				try {
+				//Name /Name
+				case '/':
+					return scanName();
+				default:
+					return null;
+			}	
+		}
+		if(NUMERAL.indexOf(next) >= 0) {
+			long position = scanner.getPosition() - 1;
+			//See if the object being scanned is a number or a reference(2 0 R)
+			skipWhiteSpace();
+			try {
+				scanner.nextInt();
+				if(scanner.nextChar() == 'R') {
+					scanner.setPosition(position);
 					return scanObjectReference();
 				}
-				catch(NotCorrectPdfTypeException e) {
-					e.printStackTrace();
+				else {
+					scanner.setPosition(position);
+					return scanNumeric();
 				}
-			case 10:
-				try {
-					return scanObject();
-				}
-				catch(NotCorrectPdfTypeException e) {
-					e.printStackTrace();
-				}
-			case 11:
-				throw new NotCorrectPdfTypeException();
+			}
+			catch(NumberFormatException e) {
+				scanner.setPosition(position);
+				return scanNumeric();
+			}			
+		}
+		else {
+			scanner.shiftPosition(-1);
+			int keyWord = scanKeyword();
+			//Returns for keywords need to be added. Most of these won't be used.
+			switch(keyWord) {
+				case 0:
+					return false;
+				case 1:
+					return true;
+				case 2:
+					//scanObject
+				case 4:
+					//scanStream
+				case 6:
+					//scanXref
+				case 7:
+					//scanTrailer
+				case 8:
+					return null;
+			}
+		}
+		return null;
+	}
+	
+	/*
+	 * Returns an integer that denotes the type of keyword. 10 signifies not a keyword.
+	 */
+	public int scanKeyword() {
+		String next = scanner.next();
+		switch(next) {
+			case FALSE:
+				return 0;
+			case TRUE:
+				return 1;
+			case OBJ:
+				return 2;
+			case ENDOBJ:
+				return 3;
+			case STREAM:
+				return 4;
+			case ENDSTREAM:
+				return 5;
+			case XREF:
+				return 6;
+			case STARTXREF:
+				return 7;
+			case TRAILER:
+				return 8;
+			case REFERENCE:
+				return 9;
 			default:
-				throw new NotCorrectPdfTypeException();
+				return 10;
 		}
 	}
 	
 	/*
-	 * like scanNextObject(), can only read single token objects.
+	 * Scans in a numeric object, either an Integer(int) of Real(float).
 	 */
-	public Object getObject(String token) throws NotCorrectPdfTypeException {
-		StringBuilder stringBuilder = new StringBuilder(token);
-		int type = getType(token);
-		
-		if(stringBuilder.charAt(0) == '/' && type == 4) {
-			stringBuilder.deleteCharAt(0);
-		}
-		if(stringBuilder.charAt(0) == '(' && stringBuilder.charAt(stringBuilder.length() - 1) == ')' && type == 3) {
-			stringBuilder.deleteCharAt(stringBuilder.length() - 1);
-			stringBuilder.deleteCharAt(0);
-		}
-		
-		switch(type) {
-			case 0:
-				boolean bool = Boolean.parseBoolean(token);
-				return bool;
-			case 1:
-				return Integer.parseInt(token);
-			case 2:
-				return Float.parseFloat(token);
-			case 3:
-				return stringBuilder.toString();
-			case 4:
-				return stringBuilder.toString();
-			case 8:
-				return null;
-			case 11:
-				throw new NotCorrectPdfTypeException();
-			default:
-				throw new NotCorrectPdfTypeException();
-		}
-	}
+ 	public Number scanNumeric() {
+ 		boolean isFloat = false;
+ 		StringBuilder res = new StringBuilder();
+ 		char next = scanner.nextChar();
+ 		while(NUMERAL.indexOf(next) >= 0) {
+ 			if(next == '.') {
+ 				isFloat = true;
+ 			}
+ 			res.append(next);
+ 			next = scanner.nextChar();
+ 		}
+ 		scanner.shiftPosition(-1);
+ 		if(isFloat) {
+ 			return Float.parseFloat(res.toString());
+ 		}
+ 		else {
+ 			return Integer.parseInt(res.toString());
+ 		}	
+ 	}
+ 	
+ 	/*
+ 	 *Scans a long number
+ 	 */
+ 	public Number scanLong() {
+ 		StringBuilder res = new StringBuilder();
+ 		char next = scanner.nextChar();
+ 		while(NUMERAL.indexOf(next) >= 0) {
+ 			res.append(next);
+ 			next = scanner.nextChar();
+ 		}
+ 		return Long.parseLong(res.toString());
+ 	}
 	
-	public String scanString() throws NotCorrectPdfTypeException {
-		StringBuilder result = new StringBuilder(scanner.next());
-		if(result.charAt(0) == '(' && result.charAt(result.length() - 1) == ')') {
-			result.deleteCharAt(0);
-			result.deleteCharAt(result.length() - 1);
-			return result.toString();
-		}
-		else {
-			throw new NotCorrectPdfTypeException();
-		}
-	}
-	
-	public String scanName() throws NotCorrectPdfTypeException {
-		StringBuilder result = new StringBuilder(scanner.next());
-		if(result.charAt(0) == '/') {
-			result.deleteCharAt(0);
-			return result.toString();
-		}
-		else {
-			throw new NotCorrectPdfTypeException();
-		}
-	}
-	
-	public ArrayList<Object> scanArray() throws NotCorrectPdfTypeException {
-		ArrayList<Object> result = new ArrayList<Object>();
-		StringBuilder entry = new StringBuilder(scanner.next());
-		if(entry.charAt(0) == '[') {
-			entry.deleteCharAt(0);
-			result.add(getObject(entry.toString()));
-			while(entry.charAt(entry.length() -1) != ']') {
-				result.add(scanNextObject());
+	/*
+	 * Scans in a string. The opening parenthesis was already read in.
+	 */
+	public String scanString() {
+		StringBuilder res = new StringBuilder();
+		char next = scanner.nextChar();
+		int parenthesis = 0;
+		while(next != ')' || parenthesis > 0) {
+			//If parentheses are balanced, they are valid.
+			if(next == '(') {
+				parenthesis ++;
 			}
-			entry.deleteCharAt(entry.length() - 1);
-			result.add(getObject(entry.toString()));
-			return result;
-		}
-		
-		else {
-			throw new NotCorrectPdfTypeException();
-		}
-	}
-	
-	public HashMap<String, Object> scanDictionary() throws NotCorrectPdfTypeException {
-		try {
-			HashMap<String, Object> dictionary = new HashMap<>();
-			if(scanner.next() == "<<") {
-				while(scanner.next() != ">>") {
-					scanner.shiftTokenPosition(-1);
-					dictionary.put(scanName(), scanNextObject());
+			if(next == ')') {
+				parenthesis --;
+			}
+			//Reading in escape sequences
+			if(next == '\\') {
+				next = scanner.nextChar();
+				//Octal character codes
+				if(next >= '0' && next <= '7') {
+					StringBuilder octalEscape = new StringBuilder(Character.toString(next));
+					next = scanner.nextChar();
+					if(next >= '0' && next <= '7') {
+						octalEscape.append(next);
+						next = scanner.nextChar();
+						if(next >= '0' && next <= '7') {
+							octalEscape.append(next);
+						}
+					}
+					/* TEMPORARY SOLUTION: DOES NOT RETURN CORRECT STANDARD FOR TEXT ENCODING*/
+					res.append((char) Integer.parseInt(octalEscape.toString()));
+				}
+				//Special escape sequences 
+				else {
+					switch(next) {
+						case 'n':
+							res.append('\n');
+							break;
+						case 'r':
+							res.append('\r');
+							break;
+						case 't':
+							res.append('\t');
+							break;
+						case 'b':
+							res.append('\b');
+							break;
+						case 'f':
+							res.append('\f');
+							break;
+						case '(':
+							res.append('(');
+							break;
+						case ')':
+							res.append(')');
+							break;
+						case '\\':
+							res.append('\\');
+							break;
+						case '\r':
+							next = scanner.nextChar();
+							if(next == '\n') {
+								break;
+							}
+							res.append('\r');
+							break;
+					}
 				}
 			}
-			return dictionary;
+			else {
+				res.append(next);
+			}
+			next = scanner.nextChar();
 		}
-		catch(NotCorrectPdfTypeException e) {
-			throw new NotCorrectPdfTypeException();
+		return res.toString();
+	}
+	
+	/*
+	 * Scans in a string represented by two hexadecimal numerals. Skips non-hex characters and appends a 0 
+	 * at the end if there are an odd number of hex numerals.
+	 */
+	public String scanHexString() {
+		StringBuilder res = new StringBuilder();
+		StringBuilder hex = new StringBuilder();
+		char next = scanner.nextChar();
+		while(next != '>') {		
+			if(HEX.indexOf((char)next) >= 0) {
+				if(hex.length() >= 2) {
+					res.append((char) Integer.parseInt(hex.toString(), 16));
+					hex = new StringBuilder();
+					if(HEX.indexOf((char)next) >= 0) {
+						hex.append(next);
+					}
+				}
+				else {
+					hex.append(next);
+				}
+			}
+			next = scanner.nextChar();
+		}
+		if(hex.length() == 1) {
+			hex.append('0');
+		}
+		res.append((char) Integer.parseInt(hex.toString(), 16));
+		return res.toString();
+	}
+	
+	/*
+	 * Scans in a name denoted by a '/' preceding it. 
+	 */
+	public String scanName() {
+		StringBuilder res = new StringBuilder();
+		char next = scanner.nextChar();
+		while(!isWhiteSpace(next)) {
+			if(next == '#') {
+				StringBuilder hex = new StringBuilder();
+				next = scanner.nextChar();
+				if(HEX.indexOf(next) >= 0) {
+					hex.append(next);
+					next = scanner.nextChar();
+					if(HEX.indexOf(next) >= 0) {
+						hex.append(next);
+					}
+					res.append((char) Integer.parseInt(hex.toString(), 16));
+				}
+				if(hex.length() == 0) {
+					res.append('#');
+					res.append(next);
+				}
+			}
+			else if(!(DELIMITER.indexOf(next) >= 0)) {
+				res.append(next);
+			}
+			else {
+				return res.toString();
+			}
+			next = scanner.nextChar();
+		}
+		return res.toString();
+	}
+	
+	/*
+	 * Read everything from the comment until the newline.
+	 */
+	public void scanComment() {
+		char next = scanner.nextChar();
+		while(next != '\n') {
+			next = scanner.nextChar();
 		}
 	}
 	
-	public PdfObject scanObject() throws NotCorrectPdfTypeException {
-		int objNum, genNum;
+	/*
+	 * Scans in an array object.
+	 */
+	public ArrayList<Object> scanArray() { 
+		ArrayList<Object> res = new ArrayList<>();
+		skipWhiteSpace();
+		char next = scanner.nextChar();
+		while(next != ']') {
+			scanner.shiftPosition(-1);
+			res.add(scanNext());
+			skipWhiteSpace();
+			next = scanner.nextChar();
+		}
+		return res;
+	}
+	
+	/*
+	 * Scans in a dictionary.
+	 */
+	public HashMap<String, Object> scanDictionary() {
+		HashMap<String, Object> res = new HashMap<>();
+		skipWhiteSpace();
+		char next = scanner.nextChar();
+		while(next != '>') {
+			String key;
+			if(next == '/') {
+				key = scanName();
+			}
+			else {
+				key = "NO_KEY";
+			}
+			Object value = scanNext();
+			skipWhiteSpace();
+			res.put(key, value);
+			next = scanner.nextChar();
+		}	
+		
+		scanner.nextChar();
+		return res;
+	}
+	
+	/*
+	 * Scans in an indirect object.
+	 */
+	public PdfObject scanObject() {
+		PdfObject res;
 		Object object;
-		try {
-			if(scanner.hasNextInt()) {
-				objNum = scanner.nextInt();
-				if(scanner.hasNextInt()) {
-					genNum = scanner.nextInt();
-					if(scanner.next() == "obj") {
-						object = scanNextObject();
-						return new PdfObject(objNum, genNum, object);
-					}
-					else {
-						throw new NotCorrectPdfTypeException();
-					}
-				}
-				else {
-					throw new NotCorrectPdfTypeException();
-				}
-			}
-			else {
-				throw new NotCorrectPdfTypeException();
-			}
+		int objectNumber;
+		int generationNumber;
+		
+		skipWhiteSpace();
+		objectNumber = (int) scanNumeric();
+		skipWhiteSpace();
+		generationNumber = (int) scanNumeric();
+		skipWhiteSpace();
+		if(scanKeyword() == 2) {
+			object = scanNext();
 		}
-		catch(NotCorrectPdfTypeException e) {
-			throw new NotCorrectPdfTypeException();
+		else {
+			object = null;
+		}
+		skipWhiteSpace();
+		if(scanKeyword() == 3) {
+			res = new PdfObject(objectNumber, generationNumber, object);
+		}
+		else {
+			res = null;
+		}
+		return res;
+	}
+	
+	public PdfObjectReference scanObjectReference() {
+		int objectNumber;
+		int generationNumber;
+		
+		skipWhiteSpace();
+		objectNumber = (int) scanNumeric();
+		skipWhiteSpace();
+		generationNumber = (int) scanNumeric();
+		skipWhiteSpace();
+		if(scanner.nextChar() == 'R') {
+			return new PdfObjectReference(objectNumber, generationNumber);
+		}
+		else {
+			return null;
 		}
 	}
 	
-	public PdfObjectReference scanObjectReference() throws NotCorrectPdfTypeException {
-		int objNum, genNum;
-		try {
-			if(scanner.hasNextInt()) {
-				objNum = scanner.nextInt();
-				if(scanner.hasNextInt()) {
-					genNum = scanner.nextInt();
-					if(scanner.next() == "obj") {
-						return new PdfObjectReference(objNum, genNum);
-					}
-					else {
-						throw new NotCorrectPdfTypeException();
-					}
-				}
-				else {
-					throw new NotCorrectPdfTypeException();
-				}
-			}
-			else {
-				throw new NotCorrectPdfTypeException();
-			}
+	/* 
+	 * Skip white-space characters until the next object
+	 */
+	public void skipWhiteSpace() {
+		char next = scanner.nextChar();
+		while(isWhiteSpace(next)) {
+			next = scanner.nextChar();
 		}
-		catch(NotCorrectPdfTypeException e) {
-			throw new NotCorrectPdfTypeException();
-		}
+		scanner.shiftPosition(-1);
+	}
+	
+	/*
+	 * Simple function for determining whether a character is white-space.
+	 */
+	public boolean isWhiteSpace(char character) {
+		return WHITESPACE.indexOf((char)character) >= 0;
 	}
 }

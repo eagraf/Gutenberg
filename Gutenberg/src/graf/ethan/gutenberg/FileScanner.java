@@ -21,7 +21,7 @@ public class FileScanner {
 	public FileChannel fileChannel;
 	public byte[] buffer = new byte[1];
 	
-	//Delimeters are characters that FileScanner skips over
+	//Delimiters are characters that FileScanner skips over
 	private static final String DELIMITER = " \t\f\r\n";   
 	
 	public FileScanner(File f) {
@@ -42,7 +42,6 @@ public class FileScanner {
 	public String next() {
 		StringBuffer res = new StringBuffer();
 		skipWhiteSpace();
-		
 		try {
 			res.append((char) buffer[0]);
 			while(fileChannel.position() <= length - 1) {
@@ -60,88 +59,22 @@ public class FileScanner {
 			ioe.printStackTrace();
 			return null;
 		}
-	} 
-	
-	public String prev() {
-		StringBuffer res = new StringBuffer();
-		
-		skipPrevWhiteSpace();
-		
-		try {
-			while(!isWhiteSpace((char) buffer[0]) && fileChannel.position() >= 2) {
-				res.append((char) buffer[0]);
-				shiftPosition(-2);
-				reader.read(buffer, 0, 1);
-			}
-			return res.toString();
-		}
-		catch(IOException ioe){
-			ioe.printStackTrace();
-			return null;
-		}
-	}
-	
-	/*
-	 * The "has" functions test whether the next token is off a certain type.
-	 */
-	public boolean hasNextBoolean() {
-		try {
-			Boolean.parseBoolean(next());
-			shiftTokenPosition(-1);
-			return true;
-		}
-		catch(NumberFormatException e) {
-			return false;
-		}
-	}
-	
-	public boolean hasNextInt() {
-		try {
-			Integer.parseInt(next());
-			shiftTokenPosition(-1);
-			return true;
-		}
-		catch(NumberFormatException e) {
-			return false;
-		}
-	}
-	
-	public boolean hasNextShort() {
-		try {
-			Short.parseShort(next());
-			shiftTokenPosition(-1);
-			return true;
-		}
-		catch(NumberFormatException e) {
-			return false;
-		}
-	}
-	
-	public boolean hasNextLong() {
-		try {
-			Long.parseLong(next());
-			shiftTokenPosition(-1);
-			return true;
-		}
-		catch(NumberFormatException e) {
-			return false;
-		}
-	}
-	
-	public boolean hasNextFloat() {
-		try {
-			Float.parseFloat(next());
-			shiftTokenPosition(-1);
-			return true;
-		}
-		catch(NumberFormatException e) {
-			return false;
-		}	
 	}
 	
 	/*
 	 * The "next" functions return the next token of a certain type.
 	 */
+	public char nextChar() {
+		try {
+			reader.read(buffer, 0, 1);
+			return (char) buffer[0];
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return 0;
+		}
+	}
+	
 	public boolean nextBoolean() {
 		return Boolean.parseBoolean(next());
 	}
@@ -167,7 +100,7 @@ public class FileScanner {
 	 */
 	public String nextLine() {
 		try {
-			return lineReader.readLine();
+			return reader.readLine();
 		} catch (IOException e) {
 			e.printStackTrace();
 			return null;
@@ -243,19 +176,6 @@ public class FileScanner {
 		}
 		catch(IOException e) {
 			e.printStackTrace();
-		}
-	}
-	
-	public void shiftTokenPosition(long offset) {
-		if(offset > 0) {
-			for(int i = 0; i < offset && getPosition() < length; i ++) {
-				next();
-			}
-		}
-		if(offset < 0) {
-			for(int i = 0; i > offset && getPosition() >= 0; i ++) {
-				prev();
-			}
 		}
 	}
 }

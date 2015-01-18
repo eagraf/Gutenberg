@@ -10,4 +10,9 @@ public class PdfObject {
 		this.generationNumber = gennum;
 		this.object = object;
 	}
+	
+	@Override
+	public String toString() {
+		return object.toString();
+	}
 }
