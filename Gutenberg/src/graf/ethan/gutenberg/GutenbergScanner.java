@@ -1,5 +1,6 @@
 package graf.ethan.gutenberg;
 
+import java.awt.Font;
 import java.io.File;
 import java.io.IOException;
 import java.io.LineNumberReader;
@@ -74,14 +75,8 @@ public class GutenbergScanner {
 	
 	public Page getPage() {
 		HashMap<String, Object> pageObject = (HashMap) crossScanner.getObject((PdfObjectReference) ((ArrayList) pageTree.get("Kids")).get(0));
-		ArrayList<Integer> rect = getMediaBox(pageObject);
-		int width = rect.get(2) - rect.get(0);
-		int height = rect.get(3) - rect.get(1);
 		
-		HashMap<String, Object> resources = (HashMap<String, Object>) pageObject.get("Resources");
-		System.out.println(resources);
-		
-		return new Page(width, height);
+		return new Page(this, pageObject);
 	}
 	
 	public ArrayList<Integer> getMediaBox(HashMap<String, Object> node) {

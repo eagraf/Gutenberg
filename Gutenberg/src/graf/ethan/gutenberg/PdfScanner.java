@@ -12,7 +12,6 @@ public class PdfScanner {
 	private static final String WHITESPACE = " \0\t\n\f\r";
 	private static final String DELIMITER = "()<>[]{}/%";
 	private static final String DELIMITEROPEN = "(<[{/%";
-	private static final String DELIMITERCLOSE = ")>]}";
 	private static final String NUMERAL = "0123456789.+-";
 	private static final String HEX = "0123456789ABCDEFabcdef";
 	
@@ -40,13 +39,17 @@ public class PdfScanner {
 	public Object scanNext() {
 		skipWhiteSpace();
 		char next =  scanner.nextChar();
+		//Checks to see if next is an opening delimiter. If so, the appropriate method is called.
 		if(DELIMITEROPEN.indexOf(next) >= 0) {
 			switch(next) {
+				//Strings (String)
 				case '(':
 					String resString = scanString();
 					return resString;
+				//Hex-string <12AE3BC2930>
 				case '<':
 					next = scanner.nextChar();
+					//If there is a second '<', then the next object is a dictionary.
 					if(next == '<') {
 						return scanDictionary();
 					}
@@ -54,11 +57,14 @@ public class PdfScanner {
 						scanner.shiftPosition(-1);
 						return scanHexString();
 					}
+				//Comment %Comment
 				case '%':
 					scanComment();
 					break;
+				//Array [2 4 45.3 true 2 0 R]
 				case '[':
 					return scanArray();
+				//Name /Name
 				case '/':
 					return scanName();
 				default:
@@ -67,7 +73,7 @@ public class PdfScanner {
 		}
 		if(NUMERAL.indexOf(next) >= 0) {
 			long position = scanner.getPosition() - 1;
-			//See if the int is part of an object reference
+			//See if the object being scanned is a number or a reference(2 0 R)
 			skipWhiteSpace();
 			try {
 				scanner.nextInt();
@@ -88,6 +94,7 @@ public class PdfScanner {
 		else {
 			scanner.shiftPosition(-1);
 			int keyWord = scanKeyword();
+			//Returns for keywords need to be added. Most of these won't be used.
 			switch(keyWord) {
 				case 0:
 					return false;
@@ -210,37 +217,37 @@ public class PdfScanner {
 				//Special escape sequences 
 				else {
 					switch(next) {
-					case 'n':
-						res.append('\n');
-						break;
-					case 'r':
-						res.append('\r');
-						break;
-					case 't':
-						res.append('\t');
-						break;
-					case 'b':
-						res.append('\b');
-						break;
-					case 'f':
-						res.append('\f');
-						break;
-					case '(':
-						res.append('(');
-						break;
-					case ')':
-						res.append(')');
-						break;
-					case '\\':
-						res.append('\\');
-						break;
-					case '\r':
-						next = scanner.nextChar();
-						if(next == '\n') {
+						case 'n':
+							res.append('\n');
 							break;
-						}
-						res.append('\r');
-						break;
+						case 'r':
+							res.append('\r');
+							break;
+						case 't':
+							res.append('\t');
+							break;
+						case 'b':
+							res.append('\b');
+							break;
+						case 'f':
+							res.append('\f');
+							break;
+						case '(':
+							res.append('(');
+							break;
+						case ')':
+							res.append(')');
+							break;
+						case '\\':
+							res.append('\\');
+							break;
+						case '\r':
+							next = scanner.nextChar();
+							if(next == '\n') {
+								break;
+							}
+							res.append('\r');
+							break;
 					}
 				}
 			}

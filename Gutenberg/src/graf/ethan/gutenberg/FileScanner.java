@@ -59,83 +59,6 @@ public class FileScanner {
 			ioe.printStackTrace();
 			return null;
 		}
-	} 
-	
-	public String prev() {
-		StringBuffer res = new StringBuffer();
-		
-		skipPrevWhiteSpace();
-		
-		try {
-			while(!isWhiteSpace((char) buffer[0]) && fileChannel.position() >= 2) {
-				res.append((char) buffer[0]);
-				shiftPosition(-2);
-				reader.read(buffer, 0, 1);
-			}
-			return res.toString();
-		}
-		catch(IOException ioe){
-			ioe.printStackTrace();
-			return null;
-		}
-	}
-	
-	/*
-	 * The "has" functions test whether the next token is off a certain type.
-	 */
-	public boolean hasNextBoolean() {
-		try {
-			Boolean.parseBoolean(next());
-			shiftTokenPosition(-1);
-			return true;
-		}
-		catch(NumberFormatException e) {
-			return false;
-		}
-	}
-	
-	public boolean hasNextInt() {
-		try {
-			Integer.parseInt(next());
-			shiftTokenPosition(-1);
-			return true;
-		}
-		catch(NumberFormatException e) {
-			return false;
-		}
-	}
-	
-	public boolean hasNextShort() {
-		try {
-			Short.parseShort(next());
-			shiftTokenPosition(-1);
-			return true;
-		}
-		catch(NumberFormatException e) {
-			return false;
-		}
-	}
-	
-	public boolean hasNextLong() {
-		try {
-			Long.parseLong(next());
-			shiftTokenPosition(-1);
-			return true;
-		}
-		catch(NumberFormatException e) {
-			return false;
-		}
-	}
-	
-	public boolean hasNextFloat() {
-		try {
-			Float.parseFloat(next());
-			shiftTokenPosition(-1);
-			return true;
-		}
-		catch(NumberFormatException e) {
-			return false;
-		}	
 	}
 	
 	/*
@@ -253,19 +176,6 @@ public class FileScanner {
 		}
 		catch(IOException e) {
 			e.printStackTrace();
-		}
-	}
-	
-	public void shiftTokenPosition(long offset) {
-		if(offset > 0) {
-			for(int i = 0; i < offset && getPosition() < length; i ++) {
-				next();
-			}
-		}
-		if(offset < 0) {
-			for(int i = 0; i > offset && getPosition() >= 0; i ++) {
-				prev();
-			}
 		}
 	}
 }
