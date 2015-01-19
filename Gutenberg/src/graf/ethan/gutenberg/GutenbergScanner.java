@@ -16,6 +16,7 @@ public class GutenbergScanner {
 	public FileScanner fileScanner;
 	public PdfScanner pdfScanner;
 	public CrossReferenceScanner crossScanner;
+	public StreamScanner streamScanner;
 	
 	public long trailerPos;
 	public long startXrefPos;
@@ -31,6 +32,7 @@ public class GutenbergScanner {
 		firstPass();
 		crossScanner = new CrossReferenceScanner(pdfScanner, xrefs);
 		scanCatalog();
+		streamScanner = new StreamScanner(this);
 	}
 	
 	public void getVersion() {
@@ -50,9 +52,9 @@ public class GutenbergScanner {
 					break;
 				case XREF:
 					pdfScanner.skipWhiteSpace();
-					int startNum = (int) pdfScanner.scanNumeric();
+					int startNum = pdfScanner.scanNumeric().intValue();
 					pdfScanner.skipWhiteSpace();
-					int length = (int) pdfScanner.scanNumeric();
+					int length = (int) pdfScanner.scanNumeric().intValue();
 					xrefs.add(new CrossReferenceSection(startNum, length, fileScanner.getPosition()));
 					break;
 				case STARTXREF:
@@ -76,7 +78,7 @@ public class GutenbergScanner {
 	public Page getPage() {
 		HashMap<String, Object> pageObject = (HashMap) crossScanner.getObject((PdfObjectReference) ((ArrayList) pageTree.get("Kids")).get(0));
 		
-		return new Page(this, pageObject);
+		return new Page(this, pageObject, 100, 100);
 	}
 	
 	public ArrayList<Integer> getMediaBox(HashMap<String, Object> node) {

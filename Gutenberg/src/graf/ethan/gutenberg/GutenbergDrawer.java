@@ -28,15 +28,7 @@ public class GutenbergDrawer {
 		        RenderingHints.KEY_TEXT_ANTIALIASING,
 		        RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 		
-		//Draws the page boundaries
-		g.setColor(Color.WHITE);
-		g.fillRect(200, 40, page.WIDTH, page.HEIGHT);
-		
-		g.setColor(Color.BLACK);
-		System.out.println(page.fonts.get("F1"));
-		g.setFont(page.fonts.get("F1").getFont(Font.PLAIN, 72));
-		System.out.println(page.fonts.get("F1").getFont(Font.PLAIN, 72));
-		g.drawString("Hello World", 500, 100);
+		page.DrawPage((Graphics2D) g);
 	}
 
 }

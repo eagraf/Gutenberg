@@ -1,6 +1,7 @@
 package graf.ethan.gutenberg;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 
 /*
@@ -14,6 +15,25 @@ public class PdfScanner {
 	private static final String DELIMITEROPEN = "(<[{/%";
 	private static final String NUMERAL = "0123456789.+-";
 	private static final String HEX = "0123456789ABCDEFabcdef";
+	
+	private static final String[] OPERATOR = {"b", "B", "b*", "B*", 
+		"BDC", "BI", "BMC", "BT", 
+		"BX", "c", "cm", "CS", 
+		"cs", "d", "d0", "d1", 
+		"do", "DP", "EI", "EMC",
+		"ET", "EX", "f", "F", 
+		"f*", "G", "g", "gs",
+		"h", "i", "ID", "j", 
+		"J", "K", "k", "l",
+		"m", "M", "MP", "n",
+		"q", "Q", "re", "RG",
+		"rg", "ri", "s", "S",
+		"SC", "sc", "SCN", "scn",
+		"sh", "T*", "Tc", "Td",
+		"TD", "Tf", "Tj", "TJ",
+		"Tl", "Tm", "Tr", "Ts",
+		"Tw", "Tz", "v", "w",
+		"W", "W*", "y", "\'", "\""};
 	
 	//PDF keywords
 	private static final String TRUE = "true";
@@ -110,6 +130,10 @@ public class PdfScanner {
 					//scanTrailer
 				case 8:
 					return null;
+				default:
+					if(keyWord >= 32 && keyWord < 105) {
+						return new PdfOperator(keyWord - 32);
+					}
 			}
 		}
 		return null;
@@ -142,6 +166,10 @@ public class PdfScanner {
 			case REFERENCE:
 				return 9;
 			default:
+				int index = Arrays.asList(OPERATOR).indexOf(next);
+				if(index >= 0) {
+					return index + 32;
+				}
 				return 10;
 		}
 	}
@@ -165,7 +193,7 @@ public class PdfScanner {
  			return Float.parseFloat(res.toString());
  		}
  		else {
- 			return Integer.parseInt(res.toString());
+ 			return Long.parseLong(res.toString());
  		}	
  	}
  	
@@ -384,9 +412,9 @@ public class PdfScanner {
 		int generationNumber;
 		
 		skipWhiteSpace();
-		objectNumber = (int) scanNumeric();
+		objectNumber = scanNumeric().intValue();
 		skipWhiteSpace();
-		generationNumber = (int) scanNumeric();
+		generationNumber = scanNumeric().intValue();
 		skipWhiteSpace();
 		if(scanKeyword() == 2) {
 			object = scanNext();
@@ -409,9 +437,9 @@ public class PdfScanner {
 		int generationNumber;
 		
 		skipWhiteSpace();
-		objectNumber = (int) scanNumeric();
+		objectNumber = scanNumeric().intValue();
 		skipWhiteSpace();
-		generationNumber = (int) scanNumeric();
+		generationNumber = scanNumeric().intValue();
 		skipWhiteSpace();
 		if(scanner.nextChar() == 'R') {
 			return new PdfObjectReference(objectNumber, generationNumber);
