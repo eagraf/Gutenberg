@@ -2,14 +2,13 @@ package graf.ethan.gutenberg;
 
 import java.awt.Color;
 import java.awt.Font;
-import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.GraphicsEnvironment;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 
 /*
  * Represents a single page in the PDF. 
@@ -22,13 +21,14 @@ public class Page {
 	public int x;
 	public int y;
 	
-	private GutenbergScanner scanner;
-	private HashMap<String, Object> resources;
-	private HashMap<String, Object> fontDictionary;
-	private PdfObjectReference contents;	
+	public GutenbergScanner scanner;
+	public HashMap<String, Object> resources;
+	public HashMap<String, Object> fontDictionary;
+	public PdfObjectReference contents;	
 	
 	public HashMap<String, PdfFont> fonts;
 	
+	@SuppressWarnings("unchecked")
 	public Page(GutenbergScanner scanner, HashMap<String, Object> pageObject, int x, int y) {
 		this.scanner = scanner;
 		this.x = x;
@@ -48,6 +48,10 @@ public class Page {
 		this.fonts = scanFonts();
 	}
 	
+	/*
+	 * Gets the dimensions of the page.
+	 */
+	@SuppressWarnings("unchecked")
 	public ArrayList<Long> getMediaBox(HashMap<String, Object> node) {
 		ArrayList<Long> rect;
 		if(node.containsKey("MediaBox")) {
@@ -59,9 +63,13 @@ public class Page {
 		return rect;
 	}
 	
+	/*
+	 * Retrieves all of the fonts used in the file.
+	 */
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public HashMap<String, PdfFont> scanFonts() {
 		HashMap<String, PdfFont> res = new HashMap<String, PdfFont>();;
-		Iterator it = fontDictionary.entrySet().iterator();
+		Iterator<Entry<String, Object>> it = fontDictionary.entrySet().iterator();
 	    while (it.hasNext()) {
 	        Map.Entry pairs = (Map.Entry)it.next();
 	        HashMap<String, Object> font = (HashMap<String, Object>) pairs.getValue();
@@ -77,13 +85,5 @@ public class Page {
 	    } 
 	    System.out.println(res);
 	    return res;
-	}
-	
-	public void DrawPage(Graphics2D g) {
-		//Draws the page boundaries
-		g.setColor(Color.WHITE);
-		g.fillRect(x, y, WIDTH, HEIGHT);
-		
-		scanner.streamScanner.scanStream(contents, g, this);
 	}
 }

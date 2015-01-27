@@ -1,27 +1,34 @@
 package graf.ethan.gutenberg;
 
-import java.awt.Font;
 import java.io.File;
-import java.io.IOException;
-import java.io.LineNumberReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+/*
+ * The main scanner class for Gutenberg, responsible for navigating the PDF's basic structure.
+ * Contains instances of FileScanner, PdfScanner, CrossReferenceScanner, and StreamScanner
+ */
 public class GutenbergScanner {
 	//Keywords
 	private static final String XREF = "xref";
 	private static final String STARTXREF = "startxref";
 	private static final String TRAILER = "trailer";
 	
+	//Scanners
 	public FileScanner fileScanner;
 	public PdfScanner pdfScanner;
 	public CrossReferenceScanner crossScanner;
 	public StreamScanner streamScanner;
 	
+	//Drawers
+	public GutenbergDrawer gutenbergDrawer;
+	
+	//Markers
 	public long trailerPos;
 	public long startXrefPos;
 	public ArrayList<CrossReferenceSection> xrefs;
 	
+	//File Dictionaries
 	public HashMap<String, Object> trailer;
 	public HashMap<String, Object> catalog;
 	public HashMap<String, Object> pageTree;
@@ -35,10 +42,14 @@ public class GutenbergScanner {
 		streamScanner = new StreamScanner(this);
 	}
 	
-	public void getVersion() {
-		
+	public void setDrawer(GutenbergDrawer drawer) {
+		this.gutenbergDrawer = drawer;
 	}
 	
+	/*
+	 * Finds and marks the locations of important structures.
+	 */
+	@SuppressWarnings("unchecked")
 	public void firstPass() {
 		String nextLine = fileScanner.nextLine();
 		xrefs = new ArrayList<>();
@@ -47,7 +58,7 @@ public class GutenbergScanner {
 				case TRAILER:
 					trailerPos = fileScanner.getPosition();
 					pdfScanner.skipWhiteSpace();
-					trailer = (HashMap) pdfScanner.scanNext();
+					trailer = (HashMap<String, Object>) pdfScanner.scanNext();
 					System.out.println(trailer);
 					break;
 				case XREF:
@@ -63,32 +74,26 @@ public class GutenbergScanner {
 				}
 			nextLine = fileScanner.nextLine();
 		}
-		
 	}
 	
+	/*
+	 * Scans the file catalog, which contains important information about the PDF.
+	 */
+	@SuppressWarnings("unchecked")
 	public void scanCatalog() {
 		catalog = (HashMap<String, Object>) crossScanner.getObject(((PdfObjectReference) trailer.get("Root")));
 		pageTree = (HashMap<String, Object>) crossScanner.getObject(((PdfObjectReference) catalog.get("Pages")));
 		System.out.println(catalog);
 		System.out.println(pageTree);
-		
-		//System.out.println(crossScanner.getObject(((PdfObjectReference) catalog.get("Pages"))));
 	}
 	
+	/*
+	 * Gets a page object to be rendered.
+	 */
+	@SuppressWarnings("unchecked")
 	public Page getPage() {
-		HashMap<String, Object> pageObject = (HashMap) crossScanner.getObject((PdfObjectReference) ((ArrayList) pageTree.get("Kids")).get(0));
+		HashMap<String, Object> pageObject = (HashMap<String, Object>) crossScanner.getObject((PdfObjectReference) ((ArrayList<Object>) pageTree.get("Kids")).get(0));
 		
 		return new Page(this, pageObject, 100, 100);
-	}
-	
-	public ArrayList<Integer> getMediaBox(HashMap<String, Object> node) {
-		ArrayList<Integer> rect;
-		if(node.containsKey("MediaBox")) {
-			rect = (ArrayList) node.get("MediaBox");
-		}
-		else {
-			rect = getMediaBox((HashMap<String, Object>) crossScanner.getObject((PdfObjectReference) node.get("Parent")));
-		}
-		return rect;
 	}
 }

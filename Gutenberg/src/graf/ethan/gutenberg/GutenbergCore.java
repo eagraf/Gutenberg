@@ -13,11 +13,12 @@ public class GutenbergCore {
  
     public static void main(String[] args) throws IOException {
     	//Path to a test PDF file
-    	File f = new File("C:\\Users\\Ethan\\Desktop\\Gutenberg\\PDF Test\\minimal.pdf");
+    	File f = new File("C:\\Users\\Ethan\\Desktop\\Gutenberg\\PDF Test\\minimal .pdf");
     	
     	//Initialize the scanner and drawer
     	GutenbergScanner gScanner = new GutenbergScanner(f);
     	GutenbergDrawer gDrawer = new GutenbergDrawer(gScanner);
+    	gScanner.setDrawer(gDrawer);
 
     	//Creates the content frame
     	GutenbergFrame frame = new GutenbergFrame("Gutenberg", gDrawer);
