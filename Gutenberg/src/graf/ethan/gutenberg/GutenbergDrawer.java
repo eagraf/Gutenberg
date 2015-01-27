@@ -48,9 +48,19 @@ public class GutenbergDrawer {
 		scanner.streamScanner.scanStream(page.contents, g2d, page);
 	}
 	
-	public void drawText(Graphics g, Page page, String text, int x, int y, int size, String fontName, Color color) {
-		Font font = page.fonts.get(fontName).getFont(Font.PLAIN, (int) (size * scale));
-		System.out.println(font.getSize() + ", " + font.getSize2D());
+	public void drawText(Graphics g, Page page, PdfStream stream, String text, int x, int y, int size, String fontName, Color color) {
+		//Determine the font
+		Font font;
+		if(fontName == "" && stream.font != null) {
+			font = page.fonts.get(stream.font).getFont(Font.PLAIN, (int) (stream.fontSize * scale));
+		}
+		else if(fontName != "") {
+			font = page.fonts.get(fontName).getFont(Font.PLAIN, (int) (size * scale));
+		}
+		else {
+			font = new Font("Times New Roman", Font.PLAIN, 12);
+		}
+		
 		g.setFont(font);
 		g.setColor(color);
 		g.drawString(text, page.x + (int) (x * scale), page.y + (int) (page.HEIGHT * scale) - (int) (y * scale));

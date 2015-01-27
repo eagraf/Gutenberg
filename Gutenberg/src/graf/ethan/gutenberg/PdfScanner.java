@@ -31,7 +31,7 @@ public class PdfScanner {
 		"SC", "sc", "SCN", "scn",
 		"sh", "T*", "Tc", "Td",
 		"TD", "Tf", "Tj", "TJ",
-		"Tl", "Tm", "Tr", "Ts",
+		"TL", "Tm", "Tr", "Ts",
 		"Tw", "Tz", "v", "w",
 		"W", "W*", "y", "\'", "\""};
 	

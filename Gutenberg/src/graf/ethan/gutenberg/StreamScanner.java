@@ -43,21 +43,43 @@ public class StreamScanner {
 			startPos = fScanner.getPosition();
 			PdfStream stream = new PdfStream(startPos, length);
 			
-			ArrayList<Object> argStack = new ArrayList<Object>();
+			ArrayList<Object> args = new ArrayList<Object>();
 			while(fScanner.getPosition() < stream.endPos) {
 				pScanner.skipWhiteSpace();
 				Object next = pScanner.scanNext();
 				if(next instanceof PdfOperator) {
-					System.out.println(((PdfOperator) next) + ", " + argStack.toString());
+					System.out.println(((PdfOperator) next) + ", " + args.toString());
 					switch(((PdfOperator)next).id) {
 						case 7:
 						    scanText(g, page, stream);
 						    break;
+						case 54:
+							stream.charSpace = (float) ((Long) args.get(0)).floatValue();
+							break;
+						case 57:
+							stream.font = (String) args.get(0);
+							stream.fontSize = ((Long) args.get(1)).intValue() * 4 / 3; //Point size is multiplied by 4/3 for correct size
+							break;
+						case 60:
+							stream.leading = (float) ((Long) args.get(0)).floatValue();
+							break;
+						case 62:
+							stream.renderMode = (int) ((Long) args.get(0)).intValue();
+							break;
+						case 63:
+							stream.textRise = (float) ((Long) args.get(0)).floatValue();
+							break;
+						case 64:
+							stream.wordSpace = (float) ((Long) args.get(0)).floatValue();
+							break;
+						case 65:
+							stream.scale = (float) ((Long) args.get(0)).floatValue();
+							break;
 					}
-					argStack.clear();
+					args.clear();
 				}
 				else {
-					argStack.add(next);
+					args.add(next);
 				}
 			}
 		}
@@ -80,7 +102,7 @@ public class StreamScanner {
 				System.out.println(((PdfOperator) next) + ", " + args.toString());
 				switch(((PdfOperator)next).id) {
 					case 20:
-						gScanner.gutenbergDrawer.drawText(g, page, text, x, y, size, font, color);
+						gScanner.gutenbergDrawer.drawText(g, page, stream, text, x, y, size, font, color);
 						endText = true;
 						break;
 					case 55:
@@ -89,7 +111,7 @@ public class StreamScanner {
 						break;
 					case 57:
 						font = (String) args.get(0);
-						size = ((Long) args.get(1)).intValue() * 4 / 3;
+						size = ((Long) args.get(1)).intValue() * 4 / 3; //Point size is multiplied by 4/3 for correct size
 						break;
 					case 58:
 						text = (String) args.get(0);
