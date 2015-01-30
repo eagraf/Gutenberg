@@ -54,26 +54,26 @@ public class StreamScanner {
 						    scanText(g, page, stream);
 						    break;
 						case 54:
-							stream.charSpace = (float) ((Long) args.get(0)).floatValue();
+							stream.state.charSpace = (float) ((Long) args.get(0)).floatValue();
 							break;
 						case 57:
-							stream.font = (String) args.get(0);
-							stream.fontSize = ((Long) args.get(1)).intValue() * 4 / 3; //Point size is multiplied by 4/3 for correct size
+							stream.state.font = (String) args.get(0);
+							stream.state.fontSize = ((Long) args.get(1)).intValue() * 4 / 3; //Point size is multiplied by 4/3 for correct size
 							break;
 						case 60:
-							stream.leading = (float) ((Long) args.get(0)).floatValue();
+							stream.state.leading = (float) ((Long) args.get(0)).floatValue();
 							break;
 						case 62:
-							stream.renderMode = (int) ((Long) args.get(0)).intValue();
+							stream.state.renderMode = (int) ((Long) args.get(0)).intValue();
 							break;
 						case 63:
-							stream.textRise = (float) ((Long) args.get(0)).floatValue();
+							stream.state.textRise = (float) ((Long) args.get(0)).floatValue();
 							break;
 						case 64:
-							stream.wordSpace = (float) ((Long) args.get(0)).floatValue();
+							stream.state.wordSpace = (float) ((Long) args.get(0)).floatValue();
 							break;
 						case 65:
-							stream.scale = (float) ((Long) args.get(0)).floatValue();
+							stream.state.scale = (float) ((Long) args.get(0)).floatValue();
 							break;
 					}
 					args.clear();

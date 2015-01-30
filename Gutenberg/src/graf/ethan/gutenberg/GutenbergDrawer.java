@@ -5,16 +5,22 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.Toolkit;
 
 /*
  * Class responsible for the drawing of the PDF onto the screen.
  */
 public class GutenbergDrawer {
+	public final int RESOLUTION;
+	
 	public GutenbergScanner scanner;
 	private float scale = 1;
 
 	public GutenbergDrawer(GutenbergScanner scanner) {
 		this.scanner = scanner;
+		
+		RESOLUTION = Toolkit.getDefaultToolkit().getScreenResolution();
+		System.out.println("Resolution = " + RESOLUTION);
 	}
 	
 	public float getScale() {
@@ -51,8 +57,8 @@ public class GutenbergDrawer {
 	public void drawText(Graphics g, Page page, PdfStream stream, String text, int x, int y, int size, String fontName, Color color) {
 		//Determine the font
 		Font font;
-		if(fontName == "" && stream.font != null) {
-			font = page.fonts.get(stream.font).getFont(Font.PLAIN, (int) (stream.fontSize * scale));
+		if(fontName == "" && stream.state.font != null) {
+			font = page.fonts.get(stream.state.font).getFont(Font.PLAIN, (int) (stream.state.fontSize * scale));
 		}
 		else if(fontName != "") {
 			font = page.fonts.get(fontName).getFont(Font.PLAIN, (int) (size * scale));

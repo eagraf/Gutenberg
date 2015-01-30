@@ -1,7 +1,10 @@
 package graf.ethan.gutenberg;
 
+import graf.ethan.matrix.Matrix;
+
 import java.awt.Color;
 import java.io.*;
+import java.util.ArrayList;
 
 import javax.swing.ImageIcon;
 import javax.swing.JFrame;
@@ -27,12 +30,5 @@ public class GutenbergCore {
     	frame.setIconImage(new ImageIcon(GutenbergCore.class.getResource("resources\\gutenberg.png")).getImage());
     	frame.getContentPane().setBackground(new Color(0xBDBDBD));
     	frame.setVisible(true);
-    
-    	//gDrawer.drawPage(gScanner.getPage());
-    	/*
-    	FileScanner fileScanner = new FileScanner(f);
-    	PdfScanner pdfScanner = new PdfScanner(fileScanner);
-    	System.out.println(pdfScanner.scanObject());*/
-    	
     }
 } 
