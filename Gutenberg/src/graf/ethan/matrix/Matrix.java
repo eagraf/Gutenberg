@@ -117,7 +117,7 @@ public class Matrix {
 	//Matrix multiplacation: It aint like regular multiplacation.
 	public Matrix multiply(Matrix matrix) {
 		if(columns != matrix.rows) {
-			throw new IllegalArgumentException("Number of columns int Matrix 1 must equal the number of rows in Matrix 2");
+			throw new IllegalArgumentException("Number of columns in Matrix 1 must equal the number of rows in Matrix 2");
 		}
 		double[][] newGraph = new double[matrix.columns][rows];
 		for(int x = 0; x < matrix.columns; x ++) {

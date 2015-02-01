@@ -1,5 +1,7 @@
 package graf.ethan.gutenberg;
 
+import graf.ethan.matrix.Matrix;
+
 import java.util.ArrayList;
 
 
@@ -10,7 +12,8 @@ public class GraphicsState {
 	
 	//The Current Transformation Matrix (CTM)
 	//Maps positions from user-space to device-space
-	ArrayList<Float> ctm = new ArrayList<>();
+	Matrix ctm;
+	double ctmGraph[][];
 	
 	//Put Clipping Path here. Needs an implementations specific type.
 	//Color
@@ -47,8 +50,20 @@ public class GraphicsState {
 	int fontSize;
 	String font;
 		
-	public GraphicsState() {
+	public GraphicsState(GutenbergDrawer drawer, Page page) {		
+		ctmGraph = new double[3][3];
+		System.out.println("Scale: " + 72d/drawer.RESOLUTION);
+		ctmGraph[0][0] = (drawer.RESOLUTION/72d);
+		ctmGraph[1][0] = 0;
+		ctmGraph[2][0] = 0;
+		ctmGraph[0][1] = 0;
+		ctmGraph[1][1] = (drawer.RESOLUTION/72d);
+		ctmGraph[2][1] = 0;
+		ctmGraph[0][2] = (double) page.x;
+		ctmGraph[1][2] = (double) page.y + ((drawer.RESOLUTION/72d) * page.HEIGHT);
+		ctmGraph[2][2] = 1;
 		
+		this.ctm = new Matrix(ctmGraph);
 	}
 
 }

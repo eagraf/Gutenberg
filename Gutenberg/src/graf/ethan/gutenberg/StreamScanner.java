@@ -54,26 +54,26 @@ public class StreamScanner {
 						    scanText(g, page, stream);
 						    break;
 						case 54:
-							stream.state.charSpace = (float) ((Long) args.get(0)).floatValue();
+							page.state.charSpace = (float) ((Long) args.get(0)).floatValue();
 							break;
 						case 57:
-							stream.state.font = (String) args.get(0);
-							stream.state.fontSize = ((Long) args.get(1)).intValue() * 4 / 3; //Point size is multiplied by 4/3 for correct size
+							page.state.font = (String) args.get(0);
+							page.state.fontSize = ((Long) args.get(1)).intValue() * 4 / 3; //Point size is multiplied by 4/3 for correct size
 							break;
 						case 60:
-							stream.state.leading = (float) ((Long) args.get(0)).floatValue();
+							page.state.leading = (float) ((Long) args.get(0)).floatValue();
 							break;
 						case 62:
-							stream.state.renderMode = (int) ((Long) args.get(0)).intValue();
+							page.state.renderMode = (int) ((Long) args.get(0)).intValue();
 							break;
 						case 63:
-							stream.state.textRise = (float) ((Long) args.get(0)).floatValue();
+							page.state.textRise = (float) ((Long) args.get(0)).floatValue();
 							break;
 						case 64:
-							stream.state.wordSpace = (float) ((Long) args.get(0)).floatValue();
+							page.state.wordSpace = (float) ((Long) args.get(0)).floatValue();
 							break;
 						case 65:
-							stream.state.scale = (float) ((Long) args.get(0)).floatValue();
+							page.state.scale = (float) ((Long) args.get(0)).floatValue();
 							break;
 					}
 					args.clear();
@@ -102,7 +102,7 @@ public class StreamScanner {
 				System.out.println(((PdfOperator) next) + ", " + args.toString());
 				switch(((PdfOperator)next).id) {
 					case 20:
-						gScanner.gutenbergDrawer.drawText(g, page, stream, text, x, y, size, font, color);
+						gScanner.gutenbergDrawer.drawText(g, page, text, x, y, size, font, color);
 						endText = true;
 						break;
 					case 55:

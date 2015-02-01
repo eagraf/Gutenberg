@@ -15,6 +15,7 @@ public class CrossReferenceScanner {
 	public CrossReferenceScanner(PdfScanner p, ArrayList<CrossReferenceSection> xrefs) {
 		this.pdfScanner = p;
 		this.xrefs = xrefs;
+		System.out.println(xrefs.get(0).startPos);
 	}
 	
 	/*
@@ -37,6 +38,7 @@ public class CrossReferenceScanner {
 				//Gets the position of the entry's object in the file.
 				long pos = (long) pdfScanner.scanLong();
 				pdfScanner.scanner.setPosition(pos);
+				System.out.println(pos);
 				return pdfScanner.scanObject().object;
 			}
 		}

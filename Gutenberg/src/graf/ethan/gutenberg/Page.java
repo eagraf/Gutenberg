@@ -1,5 +1,7 @@
 package graf.ethan.gutenberg;
 
+import graf.ethan.matrix.Matrix;
+
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
@@ -15,9 +17,15 @@ import java.util.Map.Entry;
  * Still needs to be expanded.
  */
 public class Page {
+	//WIDTH and HEIGHT in user space
 	public final int WIDTH;
 	public final int HEIGHT;
 	
+	//Width and Height in device space
+	public int dWidth;
+	public int dHeight;
+	
+	//Coordinates in device space
 	public int x;
 	public int y;
 	
@@ -25,6 +33,8 @@ public class Page {
 	public HashMap<String, Object> resources;
 	public HashMap<String, Object> fontDictionary;
 	public PdfObjectReference contents;	
+	
+	public GraphicsState state;
 	
 	public HashMap<String, PdfFont> fonts;
 	
@@ -38,7 +48,21 @@ public class Page {
 		WIDTH = rect.get(2).intValue() - rect.get(0).intValue();
 		HEIGHT = rect.get(3).intValue() - rect.get(1).intValue();
 		
-		System.out.println(pageObject);
+		this.state = new GraphicsState(scanner.gutenbergDrawer, this);
+		
+		double ul[][] = {{0d}, {0d}, {1d}};
+		double lr[][] = {{WIDTH}, {HEIGHT}, {1d}};
+		
+		Matrix ulc = new Matrix(ul);
+		Matrix lrc = new Matrix(lr);
+		
+		Matrix m1, m2;
+		
+		ul = ulc.multiply(state.ctm).getGraph();
+		lr = lrc.multiply(state.ctm).getGraph();
+		
+		dWidth = (int) (lr[0][0] - ul[0][0]);
+		dHeight = (int) (lr[1][0] - ul[1][0]);
 		
 		contents = (PdfObjectReference) pageObject.get("Contents");
 		resources = (HashMap<String, Object>) pageObject.get("Resources");
@@ -69,6 +93,9 @@ public class Page {
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public HashMap<String, PdfFont> scanFonts() {
 		HashMap<String, PdfFont> res = new HashMap<String, PdfFont>();;
+		if(fontDictionary == null) {
+			return null;
+		}
 		Iterator<Entry<String, Object>> it = fontDictionary.entrySet().iterator();
 	    while (it.hasNext()) {
 	        Map.Entry pairs = (Map.Entry)it.next();

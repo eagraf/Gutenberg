@@ -1,5 +1,7 @@
 package graf.ethan.gutenberg;
 
+import graf.ethan.matrix.Matrix;
+
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics;
@@ -14,16 +16,22 @@ public class GutenbergDrawer {
 	public final int RESOLUTION;
 	
 	public GutenbergScanner scanner;
-	private float scale = 1;
+	
+	public Matrix scaleMatrix;
+	private double scale = 1;
 
 	public GutenbergDrawer(GutenbergScanner scanner) {
 		this.scanner = scanner;
 		
 		RESOLUTION = Toolkit.getDefaultToolkit().getScreenResolution();
 		System.out.println("Resolution = " + RESOLUTION);
+		
+		scaleMatrix = new Matrix(3, 3, 0);
+		scaleMatrix.set(0,  0,  scale);
+		scaleMatrix.set(1, 1, scale);
 	}
 	
-	public float getScale() {
+	public double getScale() {
 		return scale;
 	}
 	
@@ -46,29 +54,31 @@ public class GutenbergDrawer {
 				RenderingHints.KEY_FRACTIONALMETRICS, 
 				RenderingHints.VALUE_FRACTIONALMETRICS_OFF);
 		
-		System.out.println(g2d.getFontMetrics().getFontRenderContext().isTransformed());
-		
 		g2d.setColor(Color.WHITE);
-		g2d.fillRect(page.x, page.y, (int) (page.WIDTH * scale), (int) (page.HEIGHT * scale));
+		g2d.fillRect(page.x, page.y, page.dWidth, page.dHeight);
 		
 		scanner.streamScanner.scanStream(page.contents, g2d, page);
 	}
 	
-	public void drawText(Graphics g, Page page, PdfStream stream, String text, int x, int y, int size, String fontName, Color color) {
+	public void drawText(Graphics g, Page page, String text, int x, int y, int size, String fontName, Color color) {
 		//Determine the font
 		Font font;
-		if(fontName == "" && stream.state.font != null) {
-			font = page.fonts.get(stream.state.font).getFont(Font.PLAIN, (int) (stream.state.fontSize * scale));
+		if(fontName == "" && page.state.font != null) {
+			font = page.fonts.get(page.state.font).getFont(Font.PLAIN, (int) (page.state.fontSize * scale));
 		}
 		else if(fontName != "") {
 			font = page.fonts.get(fontName).getFont(Font.PLAIN, (int) (size * scale));
 		}
 		else {
 			font = new Font("Times New Roman", Font.PLAIN, 12);
-		}
+		} 
+		
+		double[][] tl = {{(double) x}, {(double) y}, {1f}};
+		Matrix tlc = new Matrix(tl);
+		Matrix m = tlc.multiply(page.state.ctm);
 		
 		g.setFont(font);
 		g.setColor(color);
-		g.drawString(text, page.x + (int) (x * scale), page.y + (int) (page.HEIGHT * scale) - (int) (y * scale));
+		g.drawString(text, (int) m.get(0, 0), (int) m.get(1, 0));
 	}
 }
