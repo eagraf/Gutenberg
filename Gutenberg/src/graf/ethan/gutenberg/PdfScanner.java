@@ -356,9 +356,12 @@ public class PdfScanner {
 	 */
 	public void scanComment() {
 		char next = scanner.nextChar();
-		while(next != '\n' && next != '\r') {
+		StringBuilder comment = new StringBuilder();
+ 		while(next != '\n' && next != '\r') {
+			comment.append(next);
 			next = scanner.nextChar();
 		}
+ 		System.out.println(comment);
 	}
 	
 	/*
@@ -455,11 +458,11 @@ public class PdfScanner {
 	public void skipWhiteSpace() {
 		char next = scanner.nextChar();
 		//Skip comments too
-		if(next == '%') {
-			scanComment();
-			next =scanner.nextChar();
-		}
-		while(isWhiteSpace(next)) {
+		while(isWhiteSpace(next) || next == '%') {
+			if(next == '%') {
+				scanComment();
+				next = scanner.nextChar();
+			}
 			next = scanner.nextChar();
 		}
 		scanner.shiftPosition(-1);

@@ -8,6 +8,8 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Toolkit;
+import java.awt.geom.GeneralPath;
+import java.awt.geom.Path2D;
 
 /*
  * Class responsible for the drawing of the PDF onto the screen.
@@ -58,6 +60,16 @@ public class GutenbergDrawer {
 		g2d.fillRect(page.x, page.y, page.dWidth, page.dHeight);
 		
 		scanner.streamScanner.scanStream(page.contents, g2d, page);
+	}
+	
+	public void drawPath(Graphics2D g, Page page, GeneralPath path) {
+		g.setColor(page.state.colorStroking);
+		g.draw(path);
+	}
+	
+	public void fillPath(Graphics2D g, Page page, GeneralPath path) {
+		g.setColor(page.state.colorNonStroking);
+		g.fill(path);
 	}
 	
 	public void drawText(Graphics g, Page page, String text, int x, int y, int size, String fontName, Color color) {

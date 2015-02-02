@@ -2,7 +2,11 @@ package graf.ethan.gutenberg;
 
 import graf.ethan.matrix.Matrix;
 
+import java.awt.Color;
+import java.awt.geom.GeneralPath;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 
 /*
@@ -12,22 +16,28 @@ public class GraphicsState {
 	
 	//The Current Transformation Matrix (CTM)
 	//Maps positions from user-space to device-space
-	Matrix ctm;
-	double ctmGraph[][];
+	public Matrix ctm;
+	public double ctmGraph[][];
 	
-	//Put Clipping Path here. Needs an implementations specific type.
-	//Color
-	//Line Width
-	//Line Cap
-	//Line Join
-	//Miter Limt
-	//Dash Pattern
-	//Rendering Intent
-	//Stroke Adjustment
-	//Blend Mode
-	//Soft Mask
-	//Alpha Constant
-	//Alpha Source
+	public GeneralPath clippingPath;
+	
+	public Color colorStroking = Color.BLACK;
+	public Color colorNonStroking = Color.BLACK;
+	public ArrayList<String> colorSpace = new ArrayList<String>(Arrays.asList("DeviceGray"));
+	
+	public float lineWidth = 1.0f;
+	public int lineCap = 0;
+	public int lineJoin = 0;
+	
+	public float miterLimit = 10.0f;
+	//Dash Pattern: Do this later, es muy raro
+	
+	public String renderingIntent = "RelativeColorimetric";
+	public boolean strokeAdjustment = false;
+	public ArrayList<String> blendMode = new ArrayList<String>(Arrays.asList("Normal"));
+	//Softmask: do this later
+	public float alphaConstant = 1.0f;
+	public boolean alphSource = false;
 	
 	//Device-dependent graphics state parameters
 	//Overprint
@@ -40,15 +50,15 @@ public class GraphicsState {
 	//Smoothness
 	
 	//Text state variables
-	float charSpace = 0;
-	float wordSpace = 0;
-	float scale = 100;
-	float leading = 0;
-	float textRise = 0;
-	float textKnockout;
-	int renderMode = 0;
-	int fontSize;
-	String font;
+	public float charSpace = 0;
+	public float wordSpace = 0;
+	public float scale = 100;
+	public float leading = 0;
+	public float textRise = 0;
+	public float textKnockout;
+	public int renderMode = 0;
+	public int fontSize;
+	public String font;
 		
 	public GraphicsState(GutenbergDrawer drawer, Page page) {		
 		ctmGraph = new double[3][3];
