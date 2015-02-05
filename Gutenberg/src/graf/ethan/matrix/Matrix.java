@@ -8,7 +8,7 @@ public class Matrix {
 	public int rows;
 	public int columns;
 	
-	//2 Dimensional arrry represents the matrix ([x][y]).
+	//2 Dimensional array represents the matrix ([x][y]).
 	public double graph[][];
 	
 	public Matrix(int rows, int columns) {

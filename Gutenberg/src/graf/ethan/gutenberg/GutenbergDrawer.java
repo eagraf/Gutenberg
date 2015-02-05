@@ -2,6 +2,7 @@ package graf.ethan.gutenberg;
 
 import graf.ethan.matrix.Matrix;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics;
@@ -9,7 +10,6 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Toolkit;
 import java.awt.geom.GeneralPath;
-import java.awt.geom.Path2D;
 
 /*
  * Class responsible for the drawing of the PDF onto the screen.
@@ -63,8 +63,38 @@ public class GutenbergDrawer {
 	}
 	
 	public void drawPath(Graphics2D g, Page page, GeneralPath path) {
-		g.setColor(page.state.colorStroking);
-		g.draw(path);
+		Graphics2D g2d = (Graphics2D) g;
+		g2d.setColor(page.state.colorStroking);
+		
+		boolean dashed = false;
+		float[] dashArray = new float[page.state.dashArray.size()];
+		for(int i = 0; i < page.state.dashArray.size(); i ++) {
+			float val = ((Number) page.state.dashArray.get(i)).floatValue();
+			dashArray[i] = Transform.scale(val, page.state);
+			if(val != 0) {
+				dashed = true;
+			}
+		}
+		
+		if(page.state.dashArray.isEmpty() == true || !dashed){
+			g2d.setStroke(new BasicStroke(Transform.scale(page.state.lineWidth, page.state), 
+					Transform.scale(page.state.lineCap, page.state), 
+					Transform.scale(page.state.lineJoin, page.state), 
+					Transform.scale(page.state.miterLimit, page.state)));
+		}
+		else {
+			g2d.setStroke(new BasicStroke(Transform.scale(page.state.lineWidth, page.state), 
+					Transform.scale(page.state.lineCap, page.state), 
+					Transform.scale(page.state.lineJoin, page.state), 
+					Transform.scale(page.state.miterLimit, page.state),
+					dashArray, Transform.scale(page.state.phase, page.state)));
+		}		
+		
+		g2d.setRenderingHint(
+				RenderingHints.KEY_ANTIALIASING,
+				RenderingHints.VALUE_ANTIALIAS_ON);
+		
+		g2d.draw(path);
 	}
 	
 	public void fillPath(Graphics2D g, Page page, GeneralPath path) {

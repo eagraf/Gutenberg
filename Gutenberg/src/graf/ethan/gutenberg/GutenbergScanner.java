@@ -56,12 +56,14 @@ public class GutenbergScanner {
 		while(nextLine != null) {
 			switch(nextLine) {
 				case TRAILER:
+					//Find the trailer
 					trailerPos = fileScanner.getPosition();
 					pdfScanner.skipWhiteSpace();
 					trailer = (HashMap<String, Object>) pdfScanner.scanNext();
 					System.out.println(trailer);
 					break;
 				case XREF:
+					//Find all of the XREF sections
 					pdfScanner.skipWhiteSpace();
 					int startNum = pdfScanner.scanNumeric().intValue();
 					pdfScanner.skipWhiteSpace();
@@ -69,6 +71,7 @@ public class GutenbergScanner {
 					xrefs.add(new CrossReferenceSection(startNum, length, fileScanner.getPosition()));
 					break;
 				case STARTXREF:
+					//Find the startxref marker at the end of the file.
 					startXrefPos = fileScanner.getPosition();
 					break;
 				}
@@ -94,6 +97,8 @@ public class GutenbergScanner {
 	public Page getPage() {
 		HashMap<String, Object> pageObject = (HashMap<String, Object>) crossScanner.getObject((PdfObjectReference) ((ArrayList<Object>) pageTree.get("Kids")).get(0));
 		
+		
+		//The coordinates are temporary.
 		return new Page(this, pageObject, 100, 100);
 	}
 }

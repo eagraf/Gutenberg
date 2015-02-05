@@ -1,10 +1,7 @@
 package graf.ethan.gutenberg;
 
-import graf.ethan.matrix.Matrix;
-
-import java.awt.Color;
 import java.awt.Font;
-import java.awt.Graphics2D;
+import java.awt.geom.Point2D;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,25 +41,17 @@ public class Page {
 		this.x = x;
 		this.y = y;
 		
-		ArrayList<Long> rect = getMediaBox(pageObject);
-		WIDTH = rect.get(2).intValue() - rect.get(0).intValue();
-		HEIGHT = rect.get(3).intValue() - rect.get(1).intValue();
+		ArrayList<Integer> rect = getMediaBox(pageObject);
+		WIDTH = (int) (rect.get(2) - rect.get(0));
+		HEIGHT = (int) (rect.get(3) - rect.get(1));
 		
 		this.state = new GraphicsState(scanner.gutenbergDrawer, this);
 		
-		double ul[][] = {{0d}, {0d}, {1d}};
-		double lr[][] = {{WIDTH}, {HEIGHT}, {1d}};
-		
-		Matrix ulc = new Matrix(ul);
-		Matrix lrc = new Matrix(lr);
-		
-		Matrix m1, m2;
-		
-		ul = ulc.multiply(state.ctm).getGraph();
-		lr = lrc.multiply(state.ctm).getGraph();
-		
-		dWidth = (int) (lr[0][0] - ul[0][0]);
-		dHeight = (int) (lr[1][0] - ul[1][0]);
+		Point2D p1 = Transform.user_device(0, 0, state);
+		Point2D p2 = Transform.user_device(WIDTH, HEIGHT, state);
+	
+		dWidth = (int) (p2.getX() - p1.getX());
+		dHeight = (int) (p1.getY() - p2.getY());
 		
 		contents = (PdfObjectReference) pageObject.get("Contents");
 		resources = (HashMap<String, Object>) pageObject.get("Resources");
@@ -76,10 +65,10 @@ public class Page {
 	 * Gets the dimensions of the page.
 	 */
 	@SuppressWarnings("unchecked")
-	public ArrayList<Long> getMediaBox(HashMap<String, Object> node) {
-		ArrayList<Long> rect;
+	public ArrayList<Integer> getMediaBox(HashMap<String, Object> node) {
+		ArrayList<Integer> rect;
 		if(node.containsKey("MediaBox")) {
-			rect = (ArrayList<Long>) node.get("MediaBox");
+			rect = (ArrayList<Integer>) node.get("MediaBox");
 		}
 		else {
 			rect = getMediaBox((HashMap<String, Object>) scanner.crossScanner.getObject((PdfObjectReference) node.get("Parent")));

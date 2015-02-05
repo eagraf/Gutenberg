@@ -1,12 +1,11 @@
 package graf.ethan.gutenberg;
 
-import graf.ethan.gropius.Path;
-
+import java.awt.BasicStroke;
 import java.awt.Color;
-import java.awt.Font;
 import java.awt.Graphics2D;
+import java.awt.color.ColorSpace;
 import java.awt.geom.GeneralPath;
-import java.awt.geom.Path2D;
+import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -34,18 +33,18 @@ public class StreamScanner {
 		pScanner.skipWhiteSpace();
 		HashMap<String, Object> streamDictionary;
 		
-		long length = 0;
+		Number length = 0;
 		long startPos = 0;
 		if(pScanner.scanKeyword() == 2) {
 			streamDictionary = (HashMap<String, Object>) pScanner.scanNext();
-			length = (long) streamDictionary.get("Length");
+			length = (Number) streamDictionary.get("Length");
 		}
 		else {
 			streamDictionary = null;
 		}
 		if(pScanner.scanKeyword() == 4) {
 			startPos = fScanner.getPosition();
-			PdfStream stream = new PdfStream(startPos, length);
+			PdfStream stream = new PdfStream(startPos, length.longValue());
 			
 			ArrayList<Object> args = new ArrayList<Object>();
 			while(fScanner.getPosition() < stream.endPos) {
@@ -57,63 +56,208 @@ public class StreamScanner {
 						case 7:
 						    scanText(g, page, stream);
 						    break;
+						case 11:
+							//A lot of the color spaces are not implemented
+							String space11 = (String) args.get(0);
+							page.state.colorSpaceStroking = space11;
+							switch(space11) {
+								case "DeviceGray":
+									page.state.colorStroking = Color.BLACK;
+									break;
+								case "DeviceRGB":
+									page.state.colorStroking = Color.BLACK;
+									break;
+								case "DeviceCMYK":
+									float[] default_cmyk = {0.0f, 0.0f, 0.0f, 1.0f};
+									page.state.colorStroking = new Color(
+											ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
+											default_cmyk, 1.0f);
+									break;
+								default:
+									page.state.colorSpaceStroking = (String) args.get(0);
+									break;
+							}
+							break;
+						case 12:
+							//A lot of the color spaces are not implemented
+							String space12 = (String) args.get(0);
+							page.state.colorSpaceNonStroking = space12;
+							switch(space12) {
+								case "DeviceGray":
+									page.state.colorNonStroking = Color.BLACK;
+									break;
+								case "DeviceRGB":
+									page.state.colorNonStroking = Color.BLACK;
+									break;
+								case "DeviceCMYK":
+									float[] default_cmyk = {0.0f, 0.0f, 0.0f, 1.0f};
+									page.state.colorNonStroking = new Color(
+											ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
+											default_cmyk, 1.0f);
+									break;
+								default:
+									page.state.colorSpaceNonStroking = (String) args.get(0);
+									break;
+							}
+							break;
+						case 13:
+							ArrayList<Number> dashArray = (ArrayList<Number>) args.get(0);
+							float phase = ((Number) args.get(1)).floatValue();
+							
+							page.state.dashArray = dashArray;
+							page.state.phase = phase;
+							break;
+						case 25:
+							page.state.colorStroking = new Color(
+									((Number) args.get(0)).floatValue(),
+									((Number) args.get(0)).floatValue(),
+									((Number) args.get(0)).floatValue());
+							break;
+						case 26:
+							page.state.colorNonStroking = new Color(
+									((Number) args.get(0)).floatValue(),
+									((Number) args.get(0)).floatValue(),
+									((Number) args.get(0)).floatValue());
+							break;
+						case 31:
+							switch(((Number) args.get(0)).intValue()) {
+								case 0:
+									page.state.lineJoin = BasicStroke.JOIN_MITER;
+									break;
+								case 1:
+									page.state.lineJoin = BasicStroke.JOIN_ROUND;
+									break;
+								case 2:
+									page.state.lineJoin = BasicStroke.JOIN_BEVEL;
+									break;
+							}
+							break;
+						case 32:
+							switch(((Number) args.get(0)).intValue()) {
+								case 0:
+									page.state.lineCap = BasicStroke.CAP_BUTT;
+									break;
+								case 1:
+									page.state.lineCap = BasicStroke.CAP_ROUND;
+									break;
+								case 2:
+									page.state.lineCap = BasicStroke.CAP_SQUARE;
+									break;
+							}
+							break;
 						case 36:
+							Point2D m1 = Transform.user_device(((Number) args.get(0)).doubleValue(),
+									((Number) args.get(1)).doubleValue(), page.state);
+							
 							GeneralPath path = new GeneralPath();
-							path.moveTo(((Long) args.get(0)).floatValue(), ((Long) args.get(1)).floatValue());
+							path.moveTo(m1.getX(), m1.getY());
 							scanPath(g, page, stream, path);
 							break;
+						case 37:
+							page.state.miterLimit = ((Number) args.get(0)).floatValue();
+							break;
 						case 42:
+							Point2D re1 = Transform.user_device(((Number) args.get(0)).doubleValue(),
+									((Number) args.get(1)).doubleValue(), page.state);
+							Point2D re2 = Transform.user_device(((Number) args.get(2)).doubleValue(),
+									((Number) args.get(3)).doubleValue(), page.state);
+							
+							Point2D zero = Transform.user_device(0,  0,  page.state);
+							
 							GeneralPath path1 = new GeneralPath();
-							path1.moveTo(((Long) args.get(0)).floatValue(), ((Long) args.get(1)).floatValue());
-							path1.lineTo(((Long) args.get(0)).floatValue() + ((Long) args.get(2)).floatValue(), ((Long) args.get(1)).floatValue());
-							path1.lineTo(((Long) args.get(0)).floatValue() + ((Long) args.get(2)).floatValue(), ((Long) args.get(1)).floatValue() + ((Long) args.get(3)).floatValue());
-							path1.lineTo(((Long) args.get(0)).floatValue(), ((Long) args.get(1)).floatValue() + ((Long) args.get(3)).floatValue());
+							path1.moveTo(re1.getX(), re1.getY());
+							path1.lineTo(re1.getX() + re2.getX() - zero.getX(), re1.getY());
+							path1.lineTo(re1.getX() + re2.getX() - zero.getX(), re1.getY() + re2.getY() - zero.getY());
+							path1.lineTo(re1.getX(), re1.getY() + re2.getY() - zero.getY());
 							path1.closePath();
 							scanPath(g, page, stream, path1);
 							break;
 						case 43:
-							float red = ((Number) args.get(0)).floatValue();
-							float green = ((Number) args.get(1)).floatValue();
-							float blue = ((Number) args.get(2)).floatValue();
-							
-							int intRed = (int) (255f * red);
-							int intGreen = (int) (255f * green);
-							int intBlue = (int) (255f * blue);
-							System.out.println(red + " " + green + " " + blue);
-							page.state.colorStroking = new Color(intRed, intGreen, intBlue);
+							page.state.colorStroking = new Color(
+									((Number) args.get(0)).floatValue(),
+									((Number) args.get(1)).floatValue(),
+									((Number) args.get(2)).floatValue());
 							break;
 						case 44:
-							float red1 = ((Number) args.get(0)).floatValue();
-							float green1 = ((Number) args.get(1)).floatValue();
-							float blue1 = ((Number) args.get(2)).floatValue();
-							
-							int intRed1 = (int) (255f * red1);
-							int intGreen1 = (int) (255f * green1);
-							int intBlue1 = (int) (255f * blue1);
-							
-							page.state.colorNonStroking = new Color(intRed1, intGreen1, intBlue1);
+							page.state.colorNonStroking = new Color(
+									((Number) args.get(0)).floatValue(),
+									((Number) args.get(1)).floatValue(),
+									((Number) args.get(2)).floatValue());
+							break;
+						case 48:
+							switch(page.state.colorSpaceStroking) {
+								case "DeviceRGB":
+									page.state.colorStroking = new Color(
+											((Number) args.get(0)).floatValue(),
+											((Number) args.get(1)).floatValue(),
+											((Number) args.get(2)).floatValue());
+									break;
+								case "DeviceCMYK":
+									float[] values_cmyk = {((Number) args.get(0)).floatValue(),
+											((Number) args.get(1)).floatValue(),
+											((Number) args.get(2)).floatValue(),
+											((Number) args.get(3)).floatValue()
+									};
+									page.state.colorStroking = new Color(
+											ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
+											values_cmyk, 0.0f);
+									break;
+								case "DeviceGray":
+									page.state.colorStroking = new Color(((Number) args.get(0)).floatValue(),
+											((Number) args.get(0)).floatValue(),
+											((Number) args.get(0)).floatValue());
+									break;
+							}
+							break;
+						case 49:
+							switch(page.state.colorSpaceNonStroking) {
+								case "DeviceRGB":
+									page.state.colorNonStroking = new Color(
+											((Number) args.get(0)).floatValue(),
+											((Number) args.get(1)).floatValue(),
+											((Number) args.get(2)).floatValue());
+									break;
+								case "DeviceCMYK":
+									float[] values_cmyk = {((Number) args.get(0)).floatValue(),
+											((Number) args.get(1)).floatValue(),
+											((Number) args.get(2)).floatValue(),
+											((Number) args.get(3)).floatValue()
+									};
+									page.state.colorNonStroking = new Color(
+											ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
+											values_cmyk, 0.0f);
+									break;
+								case "DeviceGray":
+									page.state.colorNonStroking = new Color(((Number) args.get(0)).floatValue(),
+											((Number) args.get(0)).floatValue(),
+											((Number) args.get(0)).floatValue());
+									break;
+							}
 							break;
 						case 54:
-							page.state.charSpace = (float) ((Long) args.get(0)).floatValue();
+							page.state.charSpace = (float) ((Number) args.get(0)).floatValue();
 							break;
 						case 57:
 							page.state.font = (String) args.get(0);
-							page.state.fontSize = ((Long) args.get(1)).intValue() * 4 / 3; //Point size is multiplied by 4/3 for correct size
+							page.state.fontSize = ((Number) args.get(1)).intValue() * 4 / 3; //Point size is multiplied by 4/3 for correct size
 							break;
 						case 60:
-							page.state.leading = (float) ((Long) args.get(0)).floatValue();
+							page.state.leading = (float) ((Number) args.get(0)).floatValue();
 							break;
 						case 62:
-							page.state.renderMode = (int) ((Long) args.get(0)).intValue();
+							page.state.renderMode = (int) ((Number) args.get(0)).intValue();
 							break;
 						case 63:
-							page.state.textRise = (float) ((Long) args.get(0)).floatValue();
+							page.state.textRise = (float) ((Number) args.get(0)).floatValue();
 							break;
 						case 64:
-							page.state.wordSpace = (float) ((Long) args.get(0)).floatValue();
+							page.state.wordSpace = (float) ((Number) args.get(0)).floatValue();
 							break;
 						case 65:
-							page.state.scale = (float) ((Long) args.get(0)).floatValue();
+							page.state.textScale = (float) ((Number) args.get(0)).floatValue();
+							break;
+						case 67:
+							page.state.lineWidth = ((Number) args.get(0)).floatValue();
 							break;
 					}
 					args.clear();
@@ -164,7 +308,66 @@ public class StreamScanner {
 						endPath = true;
 						break;
 					case 9:
-						path.curveTo(((Long) args.get(0)).doubleValue(),((Long) args.get(1)).doubleValue(), ((Long) args.get(2)).doubleValue(),((Long) args.get(3)).doubleValue(), ((Long) args.get(4)).doubleValue(), ((Long) args.get(5)).doubleValue());
+						Point2D c1 = Transform.user_device(((Number) args.get(0)).doubleValue(),
+								((Number) args.get(1)).doubleValue(), page.state);
+						Point2D c2 = Transform.user_device(((Number) args.get(2)).doubleValue(),
+								((Number) args.get(3)).doubleValue(), page.state);
+						Point2D c3 = Transform.user_device(((Number) args.get(4)).doubleValue(),
+								((Number) args.get(5)).doubleValue(), page.state);	
+
+						path.curveTo(c1.getX(), c1.getY(), c2.getX(), c2.getY(), c3.getX(), c3.getY());
+						break;
+					case 11:
+						//A lot of the color spaces are not implemented
+						String space11 = (String) args.get(0);
+						page.state.colorSpaceStroking = space11;
+						switch(space11) {
+							case "DeviceGray":
+								page.state.colorStroking = Color.BLACK;
+								break;
+							case "DeviceRGB":
+								page.state.colorStroking = Color.BLACK;
+								break;
+							case "DeviceCMYK":
+								float[] default_cmyk = {0.0f, 0.0f, 0.0f, 1.0f};
+								page.state.colorStroking = new Color(
+										ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
+										default_cmyk, 1.0f);
+								break;
+							default:
+								page.state.colorSpaceStroking = (String) args.get(0);
+								break;
+						}
+						break;
+					case 12:
+						//A lot of the color spaces are not implemented
+						String space12 = (String) args.get(0);
+						page.state.colorSpaceNonStroking = space12;
+						switch(space12) {
+							case "DeviceGray":
+								page.state.colorNonStroking = Color.BLACK;
+								break;
+							case "DeviceRGB":
+								page.state.colorNonStroking = Color.BLACK;
+								break;
+							case "DeviceCMYK":
+								float[] default_cmyk = {0.0f, 0.0f, 0.0f, 1.0f};
+								page.state.colorNonStroking = new Color(
+										ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
+										default_cmyk, 1.0f);
+								break;
+							default:
+								page.state.colorSpaceNonStroking = (String) args.get(0);
+								break;
+						}
+						break;
+					case 13:
+						@SuppressWarnings("unchecked")
+						ArrayList<Number> dashArray = (ArrayList<Number>) args.get(0);
+						float phase = ((Number) args.get(1)).floatValue();
+						
+						page.state.dashArray = dashArray;
+						page.state.phase = phase;
 						break;
 					case 22:
 						path.setWindingRule(GeneralPath.WIND_NON_ZERO);
@@ -181,46 +384,91 @@ public class StreamScanner {
 						gScanner.gutenbergDrawer.fillPath(g, page, path);
 						endPath = true;
 						break;
+					case 25:
+						page.state.colorStroking = new Color(
+								((Number) args.get(0)).floatValue(),
+								((Number) args.get(0)).floatValue(),
+								((Number) args.get(0)).floatValue());
+						break;
+					case 26:
+						page.state.colorNonStroking = new Color(
+								((Number) args.get(0)).floatValue(),
+								((Number) args.get(0)).floatValue(),
+								((Number) args.get(0)).floatValue());
+						break;
 					case 28:
 						path.closePath();
 						break;
+					case 31:
+						switch(((Number) args.get(0)).intValue()) {
+							case 0:
+								page.state.lineJoin = BasicStroke.JOIN_MITER;
+								break;
+							case 1:
+								page.state.lineJoin = BasicStroke.JOIN_ROUND;
+								break;
+							case 2:
+								page.state.lineJoin = BasicStroke.JOIN_BEVEL;
+								break;
+						}
+						break;
+					case 32:
+						switch(((Number) args.get(0)).intValue()) {
+							case 0:
+								page.state.lineCap = BasicStroke.CAP_BUTT;
+								break;
+							case 1:
+								page.state.lineCap = BasicStroke.CAP_ROUND;
+								break;
+							case 2:
+								page.state.lineCap = BasicStroke.CAP_SQUARE;
+								break;
+						}
+						break;
 					case 35:
-						path.lineTo(((Long) args.get(0)).floatValue(), ((Long) args.get(1)).floatValue()); 
+						Point2D l1 = Transform.user_device(((Number) args.get(0)).doubleValue(),
+								((Number) args.get(1)).doubleValue(), page.state);
+						
+						path.lineTo(l1.getX(), l1.getY()); 
 						break;
 					case 36:
-						path.moveTo(((Long) args.get(0)).floatValue(), ((Long) args.get(1)).floatValue());
+						Point2D m1 = Transform.user_device(((Number) args.get(0)).doubleValue(),
+								((Number) args.get(1)).doubleValue(), page.state);
+						
+						path.moveTo(m1.getX(), m1.getY());
+						break;
+					case 37:
+						page.state.miterLimit = ((Number) args.get(0)).floatValue();
 						break;
 					case 39:
 						endPath = true;
 						break;
 					case 42:
-						path.moveTo(((Long) args.get(0)).floatValue(), ((Long) args.get(1)).floatValue());
-						path.lineTo(((Long) args.get(0)).floatValue() + ((Long) args.get(2)).floatValue(), ((Long) args.get(1)).floatValue());
-						path.lineTo(((Long) args.get(0)).floatValue() + ((Long) args.get(2)).floatValue(), ((Long) args.get(1)).floatValue() + ((Long) args.get(3)).floatValue());
-						path.lineTo(((Long) args.get(0)).floatValue(), ((Long) args.get(1)).floatValue() + ((Long) args.get(3)).floatValue());
+						Point2D re1 = Transform.user_device(((Number) args.get(0)).doubleValue(),
+								((Number) args.get(1)).doubleValue(), page.state);
+						Point2D re2 = Transform.user_device(((Number) args.get(2)).doubleValue(),
+								((Number) args.get(3)).doubleValue(), page.state);
+						
+						Point2D zero = Transform.user_device(0,  0,  page.state);
+						
+						GeneralPath path1 = new GeneralPath();
+						path1.moveTo(re1.getX(), re1.getY());
+						path1.lineTo(re1.getX() + re2.getX() - zero.getX(), re1.getY());
+						path1.lineTo(re1.getX() + re2.getX() - zero.getX(), re1.getY() + re2.getY() - zero.getY());
+						path1.lineTo(re1.getX(), re1.getY() + re2.getY() - zero.getY());
 						path.closePath();
 						break;
 					case 43:
-						float red = ((Number) args.get(0)).floatValue();
-						float green = ((Number) args.get(1)).floatValue();
-						float blue = ((Number) args.get(2)).floatValue();
-						
-						int intRed = (int) (255f * red);
-						int intGreen = (int) (255f * green);
-						int intBlue = (int) (255f * blue);
-						System.out.println(red + " " + green + " " + blue);
-						page.state.colorStroking = new Color(intRed, intGreen, intBlue);
+						page.state.colorStroking = new Color(
+								((Number) args.get(0)).floatValue(),
+								((Number) args.get(1)).floatValue(),
+								((Number) args.get(2)).floatValue());
 						break;
 					case 44:
-						float red1 = ((Number) args.get(0)).floatValue();
-						float green1 = ((Number) args.get(1)).floatValue();
-						float blue1 = ((Number) args.get(2)).floatValue();
-						
-						int intRed1 = (int) (255f * red1);
-						int intGreen1 = (int) (255f * green1);
-						int intBlue1 = (int) (255f * blue1);
-						
-						page.state.colorNonStroking = new Color(intRed1, intGreen1, intBlue1);
+						page.state.colorNonStroking = new Color(
+								((Number) args.get(0)).floatValue(),
+								((Number) args.get(1)).floatValue(),
+								((Number) args.get(2)).floatValue());
 						break;
 					case 46:
 						path.closePath();
@@ -231,12 +479,75 @@ public class StreamScanner {
 						gScanner.gutenbergDrawer.drawPath(g, page, path);
 						endPath = true;
 						break;
+					case 48:
+						switch(page.state.colorSpaceStroking) {
+							case "DeviceRGB":
+								page.state.colorStroking = new Color(
+										((Number) args.get(0)).floatValue(),
+										((Number) args.get(1)).floatValue(),
+										((Number) args.get(2)).floatValue());
+								break;
+							case "DeviceCMYK":
+								float[] values_cmyk = {((Number) args.get(0)).floatValue(),
+										((Number) args.get(1)).floatValue(),
+										((Number) args.get(2)).floatValue(),
+										((Number) args.get(3)).floatValue()
+								};
+								page.state.colorStroking = new Color(
+										ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
+										values_cmyk, 0.0f);
+								break;
+							case "DeviceGray":
+								page.state.colorStroking = new Color(((Number) args.get(0)).floatValue(),
+										((Number) args.get(0)).floatValue(),
+										((Number) args.get(0)).floatValue());
+								break;
+						}
+						break;
+					case 49:
+						switch(page.state.colorSpaceNonStroking) {
+							case "DeviceRGB":
+								page.state.colorNonStroking = new Color(
+										((Number) args.get(0)).floatValue(),
+										((Number) args.get(1)).floatValue(),
+										((Number) args.get(2)).floatValue());
+								break;
+							case "DeviceCMYK":
+								float[] values_cmyk = {((Number) args.get(0)).floatValue(),
+										((Number) args.get(1)).floatValue(),
+										((Number) args.get(2)).floatValue(),
+										((Number) args.get(3)).floatValue()
+								};
+								page.state.colorNonStroking = new Color(
+										ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
+										values_cmyk, 0.0f);
+								break;
+							case "DeviceGray":
+								page.state.colorNonStroking = new Color(((Number) args.get(0)).floatValue(),
+										((Number) args.get(0)).floatValue(),
+										((Number) args.get(0)).floatValue());
+								break;
+						}
+						break;
 					case 66:
-						//This probably doesn't work correctly
-						path.curveTo((double) path.getCurrentPoint().getX(), (double) path.getCurrentPoint().getY(), ((Long) args.get(0)).doubleValue(), ((Long) args.get(1)).doubleValue(), ((Long) args.get(2)).doubleValue(), ((Long) args.get(3)).doubleValue());
+						Point2D v1 = Transform.user_device(((Number) args.get(0)).doubleValue(),
+								((Number) args.get(1)).doubleValue(), page.state);
+						Point2D v2 = Transform.user_device(((Number) args.get(2)).doubleValue(),
+								((Number) args.get(3)).doubleValue(), page.state);
+						
+						path.curveTo((double) path.getCurrentPoint().getX(),
+								(double) path.getCurrentPoint().getY(), v1.getX(), v1.getY(), v2.getX(), v2.getY());
+						break;
+					case 67:
+						page.state.lineWidth = ((Number) args.get(0)).floatValue();
 						break;
 					case 70:
-						path.curveTo(((Long) args.get(0)).doubleValue(),((Long) args.get(1)).doubleValue(), ((Long) args.get(2)).doubleValue(),((Long) args.get(3)).doubleValue(), ((Long) args.get(2)).doubleValue(), ((Long) args.get(3)).doubleValue());
+						Point2D y1 = Transform.user_device(((Number) args.get(0)).doubleValue(),
+								((Number) args.get(1)).doubleValue(), page.state);
+						Point2D y2 = Transform.user_device(((Number) args.get(2)).doubleValue(),
+								((Number) args.get(3)).doubleValue(), page.state);
+						
+						path.curveTo(y1.getX(), y1.getY(), y2.getX(), y2.getY(), y2.getX(), y2.getY());
 						break;
 				}
 				args.clear();
@@ -263,42 +574,156 @@ public class StreamScanner {
 			if(next instanceof PdfOperator) {
 				System.out.println(((PdfOperator) next) + ", " + args.toString());
 				switch(((PdfOperator)next).id) {
+				case 11:
+					//A lot of the color spaces are not implemented
+					String space11 = (String) args.get(0);
+					page.state.colorSpaceStroking = space11;
+					switch(space11) {
+						case "DeviceGray":
+							page.state.colorStroking = Color.BLACK;
+							break;
+						case "DeviceRGB":
+							page.state.colorStroking = Color.BLACK;
+							break;
+						case "DeviceCMYK":
+							float[] default_cmyk = {0.0f, 0.0f, 0.0f, 1.0f};
+							page.state.colorStroking = new Color(
+									ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
+									default_cmyk, 1.0f);
+							break;
+						default:
+							page.state.colorSpaceStroking = (String) args.get(0);
+							break;
+					}
+					break;
+				case 12:
+					//A lot of the color spaces are not implemented
+					String space12 = (String) args.get(0);
+					page.state.colorSpaceNonStroking = space12;
+					switch(space12) {
+						case "DeviceGray":
+							page.state.colorNonStroking = Color.BLACK;
+							break;
+						case "DeviceRGB":
+							page.state.colorNonStroking = Color.BLACK;
+							break;
+						case "DeviceCMYK":
+							float[] default_cmyk = {0.0f, 0.0f, 0.0f, 1.0f};
+							page.state.colorNonStroking = new Color(
+									ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
+									default_cmyk, 1.0f);
+							break;
+						default:
+							page.state.colorSpaceNonStroking = (String) args.get(0);
+							break;
+					}
+					break;
 					case 20:
 						gScanner.gutenbergDrawer.drawText(g, page, text, x, y, size, font, color);
 						endText = true;
 						break;
+					case 25:
+						page.state.colorStroking = new Color(
+								((Number) args.get(0)).floatValue(),
+								((Number) args.get(0)).floatValue(),
+								((Number) args.get(0)).floatValue());
+						break;
+					case 26:
+						page.state.colorNonStroking = new Color(
+								((Number) args.get(0)).floatValue(),
+								((Number) args.get(0)).floatValue(),
+								((Number) args.get(0)).floatValue());
+						break;
 					case 43:
-						float red = ((Number) args.get(0)).floatValue();
-						float green = ((Number) args.get(1)).floatValue();
-						float blue = ((Number) args.get(2)).floatValue();
-						
-						int intRed = (int) (255f * red);
-						int intGreen = (int) (255f * green);
-						int intBlue = (int) (255f * blue);
-						System.out.println(red + " " + green + " " + blue);
-						page.state.colorStroking = new Color(intRed, intGreen, intBlue);
+						page.state.colorStroking = new Color(
+								((Number) args.get(0)).floatValue(),
+								((Number) args.get(1)).floatValue(),
+								((Number) args.get(2)).floatValue());
 						break;
 					case 44:
-						float red1 = ((Number) args.get(0)).floatValue();
-						float green1 = ((Number) args.get(1)).floatValue();
-						float blue1 = ((Number) args.get(2)).floatValue();
-						
-						int intRed1 = (int) (255f * red1);
-						int intGreen1 = (int) (255f * green1);
-						int intBlue1 = (int) (255f * blue1);
-						
-						page.state.colorNonStroking = new Color(intRed1, intGreen1, intBlue1);
+						page.state.colorNonStroking = new Color(
+								((Number) args.get(0)).floatValue(),
+								((Number) args.get(1)).floatValue(),
+								((Number) args.get(2)).floatValue());
+						break;
+					case 48:
+						switch(page.state.colorSpaceStroking) {
+							case "DeviceRGB":
+								page.state.colorStroking = new Color(
+										((Number) args.get(0)).floatValue(),
+										((Number) args.get(1)).floatValue(),
+										((Number) args.get(2)).floatValue());
+								break;
+							case "DeviceCMYK":
+								float[] values_cmyk = {((Number) args.get(0)).floatValue(),
+										((Number) args.get(1)).floatValue(),
+										((Number) args.get(2)).floatValue(),
+										((Number) args.get(3)).floatValue()
+								};
+								page.state.colorStroking = new Color(
+										ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
+										values_cmyk, 0.0f);
+								break;
+							case "DeviceGray":
+								page.state.colorStroking = new Color(((Number) args.get(0)).floatValue(),
+										((Number) args.get(0)).floatValue(),
+										((Number) args.get(0)).floatValue());
+								break;
+						}
+						break;
+					case 49:
+						switch(page.state.colorSpaceNonStroking) {
+							case "DeviceRGB":
+								page.state.colorNonStroking = new Color(
+										((Number) args.get(0)).floatValue(),
+										((Number) args.get(1)).floatValue(),
+										((Number) args.get(2)).floatValue());
+								break;
+							case "DeviceCMYK":
+								float[] values_cmyk = {((Number) args.get(0)).floatValue(),
+										((Number) args.get(1)).floatValue(),
+										((Number) args.get(2)).floatValue(),
+										((Number) args.get(3)).floatValue()
+								};
+								page.state.colorNonStroking = new Color(
+										ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
+										values_cmyk, 0.0f);
+								break;
+							case "DeviceGray":
+								page.state.colorNonStroking = new Color(((Number) args.get(0)).floatValue(),
+										((Number) args.get(0)).floatValue(),
+										((Number) args.get(0)).floatValue());
+								break;
+						}
 						break;
 					case 55:
-						x = ((Long) args.get(0)).intValue();
-						y = ((Long) args.get(1)).intValue();
+						x = ((Number) args.get(0)).intValue();
+						y = ((Number) args.get(1)).intValue();
 						break;
 					case 57:
 						font = (String) args.get(0);
-						size = ((Long) args.get(1)).intValue() * 4 / 3; //Point size is multiplied by 4/3 for correct size
+						size = ((Number) args.get(1)).intValue() * 4 / 3; //Point size is multiplied by 4/3 for correct size
 						break;
 					case 58:
 						text = (String) args.get(0);
+						break;
+					case 60:
+						page.state.leading = (float) ((Number) args.get(0)).floatValue();
+						break;
+					case 62:
+						page.state.renderMode = (int) ((Number) args.get(0)).intValue();
+						break;
+					case 63:
+						page.state.textRise = (float) ((Number) args.get(0)).floatValue();
+						break;
+					case 64:
+						page.state.wordSpace = (float) ((Number) args.get(0)).floatValue();
+						break;
+					case 65:
+						page.state.textScale = (float) ((Number) args.get(0)).floatValue();
+						break;
+					case 67:
+						page.state.lineWidth = ((Number) args.get(0)).floatValue();
 						break;
 				}
 				args.clear();

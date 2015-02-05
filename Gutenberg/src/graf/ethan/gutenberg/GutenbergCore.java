@@ -1,10 +1,7 @@
 package graf.ethan.gutenberg;
 
-import graf.ethan.matrix.Matrix;
-
 import java.awt.Color;
 import java.io.*;
-import java.util.ArrayList;
 
 import javax.swing.ImageIcon;
 import javax.swing.JFrame;
@@ -16,7 +13,7 @@ public class GutenbergCore {
  
     public static void main(String[] args) throws IOException {
     	//Path to a test PDF file
-    	File f = new File("C:\\Users\\Ethan\\Desktop\\Gutenberg\\PDF Test\\graphics.pdf");
+    	File f = new File("C:\\Users\\Ethan\\Desktop\\Gutenberg\\PDF Test\\minimal.pdf");
     	
     	//Initialize the scanner and drawer
     	GutenbergScanner gScanner = new GutenbergScanner(f);

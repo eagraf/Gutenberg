@@ -1,7 +1,5 @@
 package graf.ethan.gutenberg;
 
-import java.awt.Color;
-import java.awt.Font;
 import java.awt.Graphics;
 
 import javax.swing.JFrame;
@@ -25,6 +23,7 @@ public class GutenbergFrame extends JFrame {
 		g.setFont(new Font("Times New Roman", Font.PLAIN, 24));
 		g.setColor(Color.BLACK);
 		g.drawString("Hello World", 50, 50);*/
+		
 		drawer.drawPage(g, drawer.scanner.getPage());
 	}
 }

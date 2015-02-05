@@ -190,10 +190,16 @@ public class PdfScanner {
  		}
  		scanner.shiftPosition(-1);
  		if(isFloat) {
- 			return Float.parseFloat(res.toString());
+ 			return (float) Float.parseFloat(res.toString());
  		}
  		else {
- 			return Long.parseLong(res.toString());
+ 			Long l = Long.parseLong(res.toString());
+ 			if(l > Integer.MAX_VALUE || l < Integer.MIN_VALUE) {
+ 				return (long) l;
+ 			}
+ 			else {
+ 				return (int) Integer.parseInt(res.toString());
+ 			}
  		}	
  	}
  	
@@ -356,12 +362,9 @@ public class PdfScanner {
 	 */
 	public void scanComment() {
 		char next = scanner.nextChar();
-		StringBuilder comment = new StringBuilder();
  		while(next != '\n' && next != '\r') {
-			comment.append(next);
 			next = scanner.nextChar();
 		}
- 		System.out.println(comment);
 	}
 	
 	/*
