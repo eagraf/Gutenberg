@@ -149,6 +149,30 @@ public class Matrix {
 		return new Matrix(newGraph);
 	}
 	
+	public double getTranslateX() {
+		return graph[0][2];
+	}
+	
+	public double getTranslateY() {
+		return graph[1][2];
+	}
+	
+	public double getRotateX() {
+		return graph[1][0];
+	}
+	
+	public double getRotateY() {
+		return graph[0][1];
+	}
+	
+	public double getScaleX() {
+		return graph[0][0];
+	}
+	
+	public double getScaleY() {
+		return graph[1][1];
+	}
+	
 	@Override
 	public String toString() {
 		StringBuilder res = new StringBuilder();

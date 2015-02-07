@@ -9,7 +9,12 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Toolkit;
+import java.awt.font.FontRenderContext;
+import java.awt.font.GlyphMetrics;
+import java.awt.font.GlyphVector;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
+import java.awt.geom.Point2D;
 
 /*
  * Class responsible for the drawing of the PDF onto the screen.
@@ -98,29 +103,57 @@ public class GutenbergDrawer {
 	}
 	
 	public void fillPath(Graphics2D g, Page page, GeneralPath path) {
+		g.setRenderingHint(
+				RenderingHints.KEY_ANTIALIASING,
+				RenderingHints.VALUE_ANTIALIAS_ON);
+		
 		g.setColor(page.state.colorNonStroking);
 		g.fill(path);
 	}
 	
-	public void drawText(Graphics g, Page page, String text, int x, int y, int size, String fontName, Color color) {
+	public void drawText(Graphics g, Page page, String text, int x, int y) {
 		//Determine the font
 		Font font;
-		if(fontName == "" && page.state.font != null) {
+		if(page.state.font != null) {
 			font = page.fonts.get(page.state.font).getFont(Font.PLAIN, (int) (page.state.fontSize * scale));
-		}
-		else if(fontName != "") {
-			font = page.fonts.get(fontName).getFont(Font.PLAIN, (int) (size * scale));
 		}
 		else {
 			font = new Font("Times New Roman", Font.PLAIN, 12);
-		} 
+		}
 		
-		double[][] tl = {{(double) x}, {(double) y}, {1f}};
-		Matrix tlc = new Matrix(tl);
-		Matrix m = tlc.multiply(page.state.ctm);
+		Graphics2D g2d = (Graphics2D) g;
+		FontRenderContext frc = g2d.getFontRenderContext();
+		GlyphVector gv = font.createGlyphVector(frc, text);
+		int length = gv.getNumGlyphs();
 		
-		g.setFont(font);
-		g.setColor(color);
-		g.drawString(text, (int) m.get(0, 0), (int) m.get(1, 0));
+		GeneralPath path;
+		GlyphMetrics metrics;
+		
+		for(int i = 0; i < length; i ++) {
+			Point2D p = gv.getGlyphPosition(i);
+			if(page.state.cache.has(font, text.charAt(i), page.state.textScale)) {
+				path = page.state.cache.get(font, text.charAt(i), page.state.textScale).path;
+				metrics = page.state.cache.get(font, text.charAt(i), page.state.textScale).metrics;
+			}
+			else {
+				path = (GeneralPath) gv.getGlyphOutline(i);
+				AffineTransform at = new AffineTransform();
+				at.setToTranslation((double) -p.getX(), -p.getY());
+				path = new GeneralPath(at.createTransformedShape(path));
+				metrics = gv.getGlyphMetrics(i);
+				page.state.cache.put(font, text.charAt(i), page.state.textScale, new Glyph(path, metrics));
+			}
+			
+			Matrix temp = page.state.getTextRenderingMatrix().multiply(page.state.textMatrix);
+			Matrix loc = temp.multiply(page.state.ctm);
+			
+			AffineTransform t = new AffineTransform();
+			
+			t.setToTranslation(loc.getTranslateX(), loc.getTranslateY());
+			path = new GeneralPath(t.createTransformedShape(path));
+			fillPath(g2d, page, path);
+			
+			page.state.incrementText(metrics.getAdvanceX() * 3/4, metrics.getAdvanceY() * 3/4);
+		}
 	}
 }

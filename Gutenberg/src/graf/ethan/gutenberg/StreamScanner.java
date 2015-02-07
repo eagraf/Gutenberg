@@ -237,12 +237,31 @@ public class StreamScanner {
 						case 54:
 							page.state.charSpace = (float) ((Number) args.get(0)).floatValue();
 							break;
+						case 55:
+							page.state.setTextStart(1, 0, 0, 1, 
+									((Number) args.get(0)).floatValue(), 
+									((Number) args.get(1)).floatValue());
+							break;
+						case 56:
+							page.state.leading = (float) ((Number) args.get(1)).floatValue();
+							page.state.setTextStart(1, 0, 0, 1, 
+									((Number) args.get(0)).floatValue(), 
+									((Number) args.get(1)).floatValue());
+							break;
 						case 57:
 							page.state.font = (String) args.get(0);
-							page.state.fontSize = ((Number) args.get(1)).intValue() * 4 / 3; //Point size is multiplied by 4/3 for correct size
+							page.state.fontSize = Transform.scale(((Number) args.get(1)).intValue(), page.state);
 							break;
 						case 60:
 							page.state.leading = (float) ((Number) args.get(0)).floatValue();
+							break;
+						case 61:
+							page.state.setTextStart(((Number) args.get(0)).floatValue(),
+									((Number) args.get(1)).floatValue(), 
+									((Number) args.get(2)).floatValue(), 
+									((Number) args.get(3)).floatValue(), 
+									((Number) args.get(4)).floatValue(), 
+									((Number) args.get(5)).floatValue());
 							break;
 						case 62:
 							page.state.renderMode = (int) ((Number) args.get(0)).intValue();
@@ -529,6 +548,9 @@ public class StreamScanner {
 								break;
 						}
 						break;
+					case 53:
+						page.state.setTextStart(1, 0, 0, 1, 0, page.state.leading);
+						break;
 					case 66:
 						Point2D v1 = Transform.user_device(((Number) args.get(0)).doubleValue(),
 								((Number) args.get(1)).doubleValue(), page.state);
@@ -562,10 +584,7 @@ public class StreamScanner {
 		boolean endText = false;
 		int x = 0;
 		int y = 0;
-		int size = 12;
-		String font = "";
 		String text = "";
-		Color color = Color.BLACK;
 		
 		ArrayList<Object> args = new ArrayList<Object>();
 		while(fScanner.getPosition() < stream.endPos && endText == false) {
@@ -574,157 +593,175 @@ public class StreamScanner {
 			if(next instanceof PdfOperator) {
 				System.out.println(((PdfOperator) next) + ", " + args.toString());
 				switch(((PdfOperator)next).id) {
-				case 11:
-					//A lot of the color spaces are not implemented
-					String space11 = (String) args.get(0);
-					page.state.colorSpaceStroking = space11;
-					switch(space11) {
-						case "DeviceGray":
-							page.state.colorStroking = Color.BLACK;
+					case 11:
+						//A lot of the color spaces are not implemented
+						String space11 = (String) args.get(0);
+						page.state.colorSpaceStroking = space11;
+						switch(space11) {
+							case "DeviceGray":
+								page.state.colorStroking = Color.BLACK;
+								break;
+							case "DeviceRGB":
+								page.state.colorStroking = Color.BLACK;
+								break;
+							case "DeviceCMYK":
+								float[] default_cmyk = {0.0f, 0.0f, 0.0f, 1.0f};
+								page.state.colorStroking = new Color(
+										ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
+										default_cmyk, 1.0f);
+								break;
+							default:
+								page.state.colorSpaceStroking = (String) args.get(0);
+								break;
+						}
+						break;
+					case 12:
+						//A lot of the color spaces are not implemented
+						String space12 = (String) args.get(0);
+						page.state.colorSpaceNonStroking = space12;
+						switch(space12) {
+							case "DeviceGray":
+								page.state.colorNonStroking = Color.BLACK;
+								break;
+							case "DeviceRGB":
+								page.state.colorNonStroking = Color.BLACK;
+								break;
+							case "DeviceCMYK":
+								float[] default_cmyk = {0.0f, 0.0f, 0.0f, 1.0f};
+								page.state.colorNonStroking = new Color(
+										ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
+										default_cmyk, 1.0f);
+								break;
+							default:
+								page.state.colorSpaceNonStroking = (String) args.get(0);
+								break;
+						}
+						break;
+						case 20:
+							gScanner.gutenbergDrawer.drawText(g, page, text, x, y);
+							endText = true;
 							break;
-						case "DeviceRGB":
-							page.state.colorStroking = Color.BLACK;
-							break;
-						case "DeviceCMYK":
-							float[] default_cmyk = {0.0f, 0.0f, 0.0f, 1.0f};
+						case 25:
 							page.state.colorStroking = new Color(
-									ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
-									default_cmyk, 1.0f);
+									((Number) args.get(0)).floatValue(),
+									((Number) args.get(0)).floatValue(),
+									((Number) args.get(0)).floatValue());
 							break;
-						default:
-							page.state.colorSpaceStroking = (String) args.get(0);
-							break;
-					}
-					break;
-				case 12:
-					//A lot of the color spaces are not implemented
-					String space12 = (String) args.get(0);
-					page.state.colorSpaceNonStroking = space12;
-					switch(space12) {
-						case "DeviceGray":
-							page.state.colorNonStroking = Color.BLACK;
-							break;
-						case "DeviceRGB":
-							page.state.colorNonStroking = Color.BLACK;
-							break;
-						case "DeviceCMYK":
-							float[] default_cmyk = {0.0f, 0.0f, 0.0f, 1.0f};
+						case 26:
 							page.state.colorNonStroking = new Color(
-									ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
-									default_cmyk, 1.0f);
+									((Number) args.get(0)).floatValue(),
+									((Number) args.get(0)).floatValue(),
+									((Number) args.get(0)).floatValue());
 							break;
-						default:
-							page.state.colorSpaceNonStroking = (String) args.get(0);
+						case 43:
+							page.state.colorStroking = new Color(
+									((Number) args.get(0)).floatValue(),
+									((Number) args.get(1)).floatValue(),
+									((Number) args.get(2)).floatValue());
 							break;
-					}
-					break;
-					case 20:
-						gScanner.gutenbergDrawer.drawText(g, page, text, x, y, size, font, color);
-						endText = true;
-						break;
-					case 25:
-						page.state.colorStroking = new Color(
-								((Number) args.get(0)).floatValue(),
-								((Number) args.get(0)).floatValue(),
-								((Number) args.get(0)).floatValue());
-						break;
-					case 26:
-						page.state.colorNonStroking = new Color(
-								((Number) args.get(0)).floatValue(),
-								((Number) args.get(0)).floatValue(),
-								((Number) args.get(0)).floatValue());
-						break;
-					case 43:
-						page.state.colorStroking = new Color(
-								((Number) args.get(0)).floatValue(),
-								((Number) args.get(1)).floatValue(),
-								((Number) args.get(2)).floatValue());
-						break;
-					case 44:
-						page.state.colorNonStroking = new Color(
-								((Number) args.get(0)).floatValue(),
-								((Number) args.get(1)).floatValue(),
-								((Number) args.get(2)).floatValue());
-						break;
-					case 48:
-						switch(page.state.colorSpaceStroking) {
-							case "DeviceRGB":
-								page.state.colorStroking = new Color(
-										((Number) args.get(0)).floatValue(),
-										((Number) args.get(1)).floatValue(),
-										((Number) args.get(2)).floatValue());
-								break;
-							case "DeviceCMYK":
-								float[] values_cmyk = {((Number) args.get(0)).floatValue(),
-										((Number) args.get(1)).floatValue(),
-										((Number) args.get(2)).floatValue(),
-										((Number) args.get(3)).floatValue()
-								};
-								page.state.colorStroking = new Color(
-										ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
-										values_cmyk, 0.0f);
-								break;
-							case "DeviceGray":
-								page.state.colorStroking = new Color(((Number) args.get(0)).floatValue(),
-										((Number) args.get(0)).floatValue(),
-										((Number) args.get(0)).floatValue());
-								break;
-						}
-						break;
-					case 49:
-						switch(page.state.colorSpaceNonStroking) {
-							case "DeviceRGB":
-								page.state.colorNonStroking = new Color(
-										((Number) args.get(0)).floatValue(),
-										((Number) args.get(1)).floatValue(),
-										((Number) args.get(2)).floatValue());
-								break;
-							case "DeviceCMYK":
-								float[] values_cmyk = {((Number) args.get(0)).floatValue(),
-										((Number) args.get(1)).floatValue(),
-										((Number) args.get(2)).floatValue(),
-										((Number) args.get(3)).floatValue()
-								};
-								page.state.colorNonStroking = new Color(
-										ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
-										values_cmyk, 0.0f);
-								break;
-							case "DeviceGray":
-								page.state.colorNonStroking = new Color(((Number) args.get(0)).floatValue(),
-										((Number) args.get(0)).floatValue(),
-										((Number) args.get(0)).floatValue());
-								break;
-						}
-						break;
-					case 55:
-						x = ((Number) args.get(0)).intValue();
-						y = ((Number) args.get(1)).intValue();
-						break;
-					case 57:
-						font = (String) args.get(0);
-						size = ((Number) args.get(1)).intValue() * 4 / 3; //Point size is multiplied by 4/3 for correct size
-						break;
-					case 58:
-						text = (String) args.get(0);
-						break;
-					case 60:
-						page.state.leading = (float) ((Number) args.get(0)).floatValue();
-						break;
-					case 62:
-						page.state.renderMode = (int) ((Number) args.get(0)).intValue();
-						break;
-					case 63:
-						page.state.textRise = (float) ((Number) args.get(0)).floatValue();
-						break;
-					case 64:
-						page.state.wordSpace = (float) ((Number) args.get(0)).floatValue();
-						break;
-					case 65:
-						page.state.textScale = (float) ((Number) args.get(0)).floatValue();
-						break;
-					case 67:
-						page.state.lineWidth = ((Number) args.get(0)).floatValue();
-						break;
+						case 44:
+							page.state.colorNonStroking = new Color(
+									((Number) args.get(0)).floatValue(),
+									((Number) args.get(1)).floatValue(),
+									((Number) args.get(2)).floatValue());
+							break;
+						case 48:
+							switch(page.state.colorSpaceStroking) {
+								case "DeviceRGB":
+									page.state.colorStroking = new Color(
+											((Number) args.get(0)).floatValue(),
+											((Number) args.get(1)).floatValue(),
+											((Number) args.get(2)).floatValue());
+									break;
+								case "DeviceCMYK":
+									float[] values_cmyk = {((Number) args.get(0)).floatValue(),
+											((Number) args.get(1)).floatValue(),
+											((Number) args.get(2)).floatValue(),
+											((Number) args.get(3)).floatValue()
+									};
+									page.state.colorStroking = new Color(
+											ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
+											values_cmyk, 0.0f);
+									break;
+								case "DeviceGray":
+									page.state.colorStroking = new Color(((Number) args.get(0)).floatValue(),
+											((Number) args.get(0)).floatValue(),
+											((Number) args.get(0)).floatValue());
+									break;
+							}
+							break;
+						case 49:
+							switch(page.state.colorSpaceNonStroking) {
+								case "DeviceRGB":
+									page.state.colorNonStroking = new Color(
+											((Number) args.get(0)).floatValue(),
+											((Number) args.get(1)).floatValue(),
+											((Number) args.get(2)).floatValue());
+									break;
+								case "DeviceCMYK":
+									float[] values_cmyk = {((Number) args.get(0)).floatValue(),
+											((Number) args.get(1)).floatValue(),
+											((Number) args.get(2)).floatValue(),
+											((Number) args.get(3)).floatValue()
+									};
+									page.state.colorNonStroking = new Color(
+											ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
+											values_cmyk, 0.0f);
+									break;
+								case "DeviceGray":
+									page.state.colorNonStroking = new Color(((Number) args.get(0)).floatValue(),
+											((Number) args.get(0)).floatValue(),
+											((Number) args.get(0)).floatValue());
+									break;
+							}
+							break;
+						case 53:
+							page.state.setTextStart(1, 0, 0, 1, 0, page.state.leading);
+							break;
+						case 55:
+							page.state.setTextStart(1, 0, 0, 1, 
+									((Number) args.get(0)).floatValue(), 
+									((Number) args.get(1)).floatValue());
+							break;
+						case 56:
+							page.state.leading = (float) ((Number) args.get(1)).floatValue();
+							page.state.setTextStart(1, 0, 0, 1, 
+									((Number) args.get(0)).floatValue(), 
+									((Number) args.get(1)).floatValue());
+							break;
+						case 57:
+							page.state.font = (String) args.get(0);
+							page.state.fontSize = Transform.scale(((Number) args.get(1)).intValue(), page.state);
+							break;
+						case 58:
+							text = (String) args.get(0);
+							break;
+						case 60:
+							page.state.leading = (float) ((Number) args.get(0)).floatValue();
+							break;
+						case 61:
+							page.state.setTextStart(((Number) args.get(0)).floatValue(),
+									((Number) args.get(1)).floatValue(), 
+									((Number) args.get(2)).floatValue(), 
+									((Number) args.get(3)).floatValue(), 
+									((Number) args.get(4)).floatValue(), 
+									((Number) args.get(5)).floatValue());
+							break;
+						case 62:
+							page.state.renderMode = (int) ((Number) args.get(0)).intValue();
+							break;
+						case 63:
+							page.state.textRise = (float) ((Number) args.get(0)).floatValue();
+							break;
+						case 64:
+							page.state.wordSpace = (float) ((Number) args.get(0)).floatValue();
+							break;
+						case 65:
+							page.state.textScale = (float) ((Number) args.get(0)).floatValue();
+							break;
+						case 67:
+							page.state.lineWidth = ((Number) args.get(0)).floatValue();
+							break;
 				}
 				args.clear();
 			}
