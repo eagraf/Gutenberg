@@ -19,7 +19,7 @@ public class PdfFont {
 		this.fileName = fileName;
 		this.fontFormat = fontFormat;
 		this.fontFile = fontFile;
-		System.out.println(fontFile);
+		System.out.println("Font File: " + fontFile);
 	}
 	
 	/*
@@ -31,10 +31,10 @@ public class PdfFont {
 			font = Font.createFont(fontFormat, fontFile);
 			font = font.deriveFont(style, size);
 		} catch (FontFormatException e) {
-			System.out.println("hi");
+			System.out.println("FontFormatException");
 			e.printStackTrace();
 		} catch (IOException e) {
-			System.out.println("hi");
+			System.out.println("IOException");
 			e.printStackTrace();
 		}
 		GraphicsEnvironment.getLocalGraphicsEnvironment().registerFont(font);

@@ -58,7 +58,7 @@ public class PdfScanner {
 	 */
 	public Object scanNext() {
 		skipWhiteSpace();
-		char next =  scanner.nextChar();
+		char next = scanner.nextChar();
 		//Checks to see if next is an opening delimiter. If so, the appropriate method is called.
 		if(DELIMITEROPEN.indexOf(next) >= 0) {
 			switch(next) {
@@ -93,13 +93,14 @@ public class PdfScanner {
 		}
 		if(NUMERAL.indexOf(next) >= 0) {
 			long position = scanner.getPosition() - 1;
+			scanner.shiftPosition(-1);
 			//See if the object being scanned is a number or a reference(2 0 R)
 			skipWhiteSpace();
 			try {
-				scanner.nextInt();
+				int num1 = scanner.nextInt();
+				int num2 = scanner.nextInt();
 				if(scanner.nextChar() == 'R') {
-					scanner.setPosition(position);
-					return scanObjectReference();
+					return new PdfObjectReference(num1, num2);
 				}
 				else {
 					scanner.setPosition(position);
@@ -143,8 +144,15 @@ public class PdfScanner {
 	 * Returns an integer that denotes the type of keyword. 10 signifies not a keyword.
 	 */
 	public int scanKeyword() {
-		String next = scanner.next();
-		switch(next) {
+		skipWhiteSpace();
+		char next = scanner.nextChar();
+		StringBuilder keyword = new StringBuilder();
+		while(!isWhiteSpace(next) && !(DELIMITER.indexOf(next) >= 0)) {
+			keyword.append(next);
+			next = scanner.nextChar();
+		}
+		scanner.shiftPosition(-1);
+		switch(keyword.toString()) {
 			case FALSE:
 				return 0;
 			case TRUE:
@@ -166,7 +174,7 @@ public class PdfScanner {
 			case REFERENCE:
 				return 9;
 			default:
-				int index = Arrays.asList(OPERATOR).indexOf(next);
+				int index = Arrays.asList(OPERATOR).indexOf(keyword.toString());
 				if(index >= 0) {
 					return index + 32;
 				}
@@ -213,6 +221,7 @@ public class PdfScanner {
  			res.append(next);
  			next = scanner.nextChar();
  		}
+ 		scanner.shiftPosition(-1);
  		return Long.parseLong(res.toString());
  	}
 	
@@ -224,7 +233,7 @@ public class PdfScanner {
 		char next = scanner.nextChar();
 		int parenthesis = 0;
 		while(next != ')' || parenthesis > 0) {
-			//If parentheses are balanced, they are valid.
+			//If parentheses are balanced, they are valid. THIS NEEDS TO BE FIXED.
 			if(next == '(') {
 				parenthesis ++;
 			}
@@ -290,6 +299,7 @@ public class PdfScanner {
 			}
 			next = scanner.nextChar();
 		}
+		
 		return res.toString();
 	}
 	
@@ -316,6 +326,7 @@ public class PdfScanner {
 			}
 			next = scanner.nextChar();
 		}
+		
 		if(hex.length() == 1) {
 			hex.append('0');
 		}
@@ -329,7 +340,7 @@ public class PdfScanner {
 	public String scanName() {
 		StringBuilder res = new StringBuilder();
 		char next = scanner.nextChar();
-		while(!isWhiteSpace(next)) {
+		while(true) {
 			if(next == '#') {
 				StringBuilder hex = new StringBuilder();
 				next = scanner.nextChar();
@@ -346,15 +357,16 @@ public class PdfScanner {
 					res.append(next);
 				}
 			}
-			else if(!(DELIMITER.indexOf(next) >= 0)) {
-				res.append(next);
+			else if((DELIMITER.indexOf(next) >= 0) || isWhiteSpace(next)) {
+				scanner.shiftPosition(-1);
+				//System.out.println(res.toString());
+				return res.toString();
 			}
 			else {
-				return res.toString();
+				res.append(next);
 			}
 			next = scanner.nextChar();
 		}
-		return res.toString();
 	}
 	
 	/*
@@ -365,6 +377,7 @@ public class PdfScanner {
  		while(next != '\n' && next != '\r') {
 			next = scanner.nextChar();
 		}
+ 		scanner.shiftPosition(-1);
 	}
 	
 	/*
@@ -380,6 +393,7 @@ public class PdfScanner {
 			skipWhiteSpace();
 			next = scanner.nextChar();
 		}
+		
 		return res;
 	}
 	
@@ -402,8 +416,7 @@ public class PdfScanner {
 			skipWhiteSpace();
 			res.put(key, value);
 			next = scanner.nextChar();
-		}	
-		
+		}
 		scanner.nextChar();
 		return res;
 	}
@@ -436,23 +449,6 @@ public class PdfScanner {
 			res = null;
 		}
 		return res;
-	}
-	
-	public PdfObjectReference scanObjectReference() {
-		int objectNumber;
-		int generationNumber;
-		
-		skipWhiteSpace();
-		objectNumber = scanNumeric().intValue();
-		skipWhiteSpace();
-		generationNumber = scanNumeric().intValue();
-		skipWhiteSpace();
-		if(scanner.nextChar() == 'R') {
-			return new PdfObjectReference(objectNumber, generationNumber);
-		}
-		else {
-			return null;
-		}
 	}
 	
 	/* 

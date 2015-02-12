@@ -27,7 +27,6 @@ public class Transform {
 	}
 	
 	public static float scale(float num, GraphicsState state) {
-		System.out.println((float) (num * state.ctm.get(0, 0)));
 		return (float) (num * state.ctm.get(0, 0));
 	}
 	

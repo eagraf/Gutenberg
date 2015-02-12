@@ -1,773 +1,480 @@
 package graf.ethan.gutenberg;
 
-import java.awt.BasicStroke;
-import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.color.ColorSpace;
-import java.awt.geom.GeneralPath;
-import java.awt.geom.Point2D;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 
 public class StreamScanner {
-	private GutenbergScanner gScanner;
-	private CrossReferenceScanner cScanner;
-	private PdfScanner pScanner;
-	private FileScanner fScanner;
+	//White-space and delimiter characters in PDF
+	private static final String WHITESPACE = " \0\t\n\f\r";
+	private static final String DELIMITER = "()<>[]{}/%";
+	private static final String DELIMITEROPEN = "(<[{/%";
+	private static final String NUMERAL = "0123456789.+-";
+	private static final String HEX = "0123456789ABCDEFabcdef";
+	
+	private static final String[] OPERATOR = {"b", "B", "b*", "B*", 
+		"BDC", "BI", "BMC", "BT", 
+		"BX", "c", "cm", "CS", 
+		"cs", "d", "d0", "d1", 
+		"do", "DP", "EI", "EMC",
+		"ET", "EX", "f", "F", 
+		"f*", "G", "g", "gs",
+		"h", "i", "ID", "j", 
+		"J", "K", "k", "l",
+		"m", "M", "MP", "n",
+		"q", "Q", "re", "RG",
+		"rg", "ri", "s", "S",
+		"SC", "sc", "SCN", "scn",
+		"sh", "T*", "Tc", "Td",
+		"TD", "Tf", "Tj", "TJ",
+		"TL", "Tm", "Tr", "Ts",
+		"Tw", "Tz", "v", "w",
+		"W", "W*", "y", "\'", "\""};
+	
+	//PDF keywords
+	private static final String TRUE = "true";
+	private static final String FALSE = "false";
+	private static final String OBJ = "obj";
+	private static final String ENDOBJ = "endobj";
+	private static final String STREAM = "stream";
+	private static final String ENDSTREAM = "endstream";
+	private static final String XREF = "xref";
+	private static final String STARTXREF = "startxref";
+	private static final String TRAILER = "trailer";
+	private static final String REFERENCE = "R";
+	
+	public long startPos;
+	public long length;
+	
+	public Filter filter;
+	public GutenbergScanner scanner;
+	
+	boolean done = false;
 	
 	public StreamScanner(GutenbergScanner scanner) {
-		this.gScanner = scanner;
-		this.fScanner = this.gScanner.fileScanner;
-		this.pScanner = this.gScanner.pdfScanner;
-		this.cScanner = this.gScanner.crossScanner;
+		this.scanner = scanner;
+	}
+	
+	public PdfOperation nextOperation() {
+		ArrayList<Object> args = new ArrayList<>();
+		while(true) {
+			Object next = scanNext();
+			if(next == null) {
+				return null;
+			}
+			else if(next.getClass() == PdfOperator.class) {
+				return new PdfOperation((PdfOperator) next, args);
+			}
+			args.add(next);
+		}
 	}
 	
 	@SuppressWarnings("unchecked")
-	public void scanStream(PdfObjectReference ref, Graphics2D g, Page page) {
-		long pos = cScanner.getObjectPosition(ref);
-		fScanner.setPosition(pos);
-		pScanner.skipWhiteSpace();
-		pScanner.scanNumeric();
-		pScanner.skipWhiteSpace();
-		pScanner.scanNumeric();
-		pScanner.skipWhiteSpace();
+	public void setStream(PdfObjectReference reference) {
+		scanner.fileScanner.setPosition(scanner.crossScanner.getObjectPosition(reference));
+		
+		//Scan in the stream dictionary
+		scanner.pdfScanner.skipWhiteSpace();
+		scanner.pdfScanner.scanNumeric();
+		scanner.pdfScanner.skipWhiteSpace();
+		scanner.pdfScanner.scanNumeric();
+		scanner.pdfScanner.skipWhiteSpace();
 		HashMap<String, Object> streamDictionary;
 		
-		Number length = 0;
-		long startPos = 0;
-		if(pScanner.scanKeyword() == 2) {
-			streamDictionary = (HashMap<String, Object>) pScanner.scanNext();
-			length = (Number) streamDictionary.get("Length");
+		if(scanner.pdfScanner.scanKeyword() == 2) {
+			streamDictionary = (HashMap<String, Object>) scanner.pdfScanner.scanNext();
+			length = ((Number) streamDictionary.get("Length")).longValue();
 		}
 		else {
 			streamDictionary = null;
 		}
-		if(pScanner.scanKeyword() == 4) {
-			startPos = fScanner.getPosition();
-			PdfStream stream = new PdfStream(startPos, length.longValue());
-			
-			ArrayList<Object> args = new ArrayList<Object>();
-			while(fScanner.getPosition() < stream.endPos) {
-				pScanner.skipWhiteSpace();
-				Object next = pScanner.scanNext();
-				if(next instanceof PdfOperator) {
-					System.out.println(((PdfOperator) next) + ", " + args.toString());
-					switch(((PdfOperator)next).id) {
-						case 7:
-						    scanText(g, page, stream);
-						    break;
-						case 11:
-							//A lot of the color spaces are not implemented
-							String space11 = (String) args.get(0);
-							page.state.colorSpaceStroking = space11;
-							switch(space11) {
-								case "DeviceGray":
-									page.state.colorStroking = Color.BLACK;
-									break;
-								case "DeviceRGB":
-									page.state.colorStroking = Color.BLACK;
-									break;
-								case "DeviceCMYK":
-									float[] default_cmyk = {0.0f, 0.0f, 0.0f, 1.0f};
-									page.state.colorStroking = new Color(
-											ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
-											default_cmyk, 1.0f);
-									break;
-								default:
-									page.state.colorSpaceStroking = (String) args.get(0);
-									break;
+		System.out.println("Stream Dictionary: " + streamDictionary);
+		
+		//Begin the scanning process
+		scanner.pdfScanner.scanKeyword();
+		startPos = scanner.fileScanner.getPosition();
+		filter = new Filter(startPos, length, scanner.fileScanner.file);
+	}
+	
+	public char nextChar() {
+		return filter.nextChar();
+	}
+	
+	/*
+	 * Scans the next object in the file.
+	 */
+	public Object scanNext() {
+		skipWhiteSpace();
+		char next = nextChar();
+		//Checks to see if next is an opening delimiter. If so, the appropriate method is called.
+		if(DELIMITEROPEN.indexOf(next) >= 0) {
+			switch(next) {
+				//Strings (String)
+				case '(':
+					String resString = scanString();
+					return resString;
+				//Hex-string <12AE3BC2930>
+				case '<':
+					next = nextChar();
+					//If there is a second '<', then the next object is a dictionary.
+					if(next == '<') {
+						return scanDictionary();
+					}
+					else {
+						filter.back();
+						return scanHexString();
+					}
+				//Comment %Comment
+				case '%':
+					scanComment();
+					break;
+				//Array [2 4 45.3 true 2 0 R]
+				case '[':
+					return scanArray();
+				//Name /Name
+				case '/':
+					return scanName();
+				default:
+					return null;
+			}	
+		}
+		if(NUMERAL.indexOf(next) >= 0) {
+			filter.back();
+			skipWhiteSpace();
+			return scanNumeric();
+		}
+		else {
+			filter.back();
+			int keyWord = scanKeyword();
+			//Returns for keywords need to be added. Most of these won't be used.
+			switch(keyWord) {
+				case 0:
+					return false;
+				case 1:
+					return true;
+				case 2:
+					//scanObject
+				case 4:
+					//scanStream
+				case 5:
+					done = true;
+					return null;
+				case 6:
+					//scanXref
+				case 7:
+					//scanTrailer
+				case 8:
+					return null;
+				default:
+					if(keyWord >= 32 && keyWord < 105) {
+						return new PdfOperator(keyWord - 32);
+					}
+			}
+		}
+		return null;
+	}
+	
+	/*
+	 * Returns an integer that denotes the type of keyword. 10 signifies not a keyword.
+	 */
+	public int scanKeyword() {
+		skipWhiteSpace();
+		char next = nextChar();
+		StringBuilder keyword = new StringBuilder();
+		while(!isWhiteSpace(next) && !(DELIMITER.indexOf(next) >= 0)) {
+			keyword.append(next);
+			next = nextChar();
+		}
+		filter.back();
+		switch(keyword.toString()) {
+			case FALSE:
+				return 0;
+			case TRUE:
+				return 1;
+			case OBJ:
+				return 2;
+			case ENDOBJ:
+				return 3;
+			case STREAM:
+				return 4;
+			case ENDSTREAM:
+				return 5;
+			case XREF:
+				return 6;
+			case STARTXREF:
+				return 7;
+			case TRAILER:
+				return 8;
+			case REFERENCE:
+				return 9;
+			default:
+				int index = Arrays.asList(OPERATOR).indexOf(keyword.toString());
+				if(index >= 0) {
+					return index + 32;
+				}
+				return 10;
+		}
+	}
+	
+	/*
+	 * Scans in a numeric object, either an Integer(int) of Real(float).
+	 */
+ 	public Number scanNumeric() {
+ 		boolean isFloat = false;
+ 		StringBuilder res = new StringBuilder();
+ 		char next = nextChar();
+ 		while(NUMERAL.indexOf(next) >= 0) {
+ 			if(next == '.') {
+ 				isFloat = true;
+ 			}
+ 			res.append(next);
+ 			next = nextChar();
+ 		}
+ 		filter.back();
+ 		if(isFloat) {
+ 			return (float) Float.parseFloat(res.toString());
+ 		}
+ 		else {
+ 			Long l = Long.parseLong(res.toString());
+ 			if(l > Integer.MAX_VALUE || l < Integer.MIN_VALUE) {
+ 				return (long) l;
+ 			}
+ 			else {
+ 				return (int) Integer.parseInt(res.toString());
+ 			}
+ 		}	
+ 	}
+ 	
+ 	/*
+ 	 *Scans a long number
+ 	 */
+ 	public Number scanLong() {
+ 		StringBuilder res = new StringBuilder();
+ 		char next = nextChar();
+ 		while(NUMERAL.indexOf(next) >= 0) {
+ 			res.append(next);
+ 			next = nextChar();
+ 		}
+ 		filter.back();
+ 		return Long.parseLong(res.toString());
+ 	}
+	
+	/*
+	 * Scans in a string. The opening parenthesis was already read in.
+	 */
+	public String scanString() {
+		StringBuilder res = new StringBuilder();
+		char next = nextChar();
+		int parenthesis = 0;
+		while(next != ')' || parenthesis > 0) {
+			//If parentheses are balanced, they are valid. THIS NEEDS TO BE FIXED.
+			if(next == '(') {
+				parenthesis ++;
+			}
+			if(next == ')') {
+				parenthesis --;
+			}
+			//Reading in escape sequences
+			if(next == '\\') {
+				next = nextChar();
+				//Octal character codes
+				if(next >= '0' && next <= '7') {
+					StringBuilder octalEscape = new StringBuilder(Character.toString(next));
+					next = nextChar();
+					if(next >= '0' && next <= '7') {
+						octalEscape.append(next);
+						next = nextChar();
+						if(next >= '0' && next <= '7') {
+							octalEscape.append(next);
+						}
+					}
+					/* TEMPORARY SOLUTION: DOES NOT RETURN CORRECT STANDARD FOR TEXT ENCODING*/
+					res.append((char) Integer.parseInt(octalEscape.toString()));
+				}
+				//Special escape sequences 
+				else {
+					switch(next) {
+						case 'n':
+							res.append('\n');
+							break;
+						case 'r':
+							res.append('\r');
+							break;
+						case 't':
+							res.append('\t');
+							break;
+						case 'b':
+							res.append('\b');
+							break;
+						case 'f':
+							res.append('\f');
+							break;
+						case '(':
+							res.append('(');
+							break;
+						case ')':
+							res.append(')');
+							break;
+						case '\\':
+							res.append('\\');
+							break;
+						case '\r':
+							next = nextChar();
+							if(next == '\n') {
+								break;
 							}
-							break;
-						case 12:
-							//A lot of the color spaces are not implemented
-							String space12 = (String) args.get(0);
-							page.state.colorSpaceNonStroking = space12;
-							switch(space12) {
-								case "DeviceGray":
-									page.state.colorNonStroking = Color.BLACK;
-									break;
-								case "DeviceRGB":
-									page.state.colorNonStroking = Color.BLACK;
-									break;
-								case "DeviceCMYK":
-									float[] default_cmyk = {0.0f, 0.0f, 0.0f, 1.0f};
-									page.state.colorNonStroking = new Color(
-											ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
-											default_cmyk, 1.0f);
-									break;
-								default:
-									page.state.colorSpaceNonStroking = (String) args.get(0);
-									break;
-							}
-							break;
-						case 13:
-							ArrayList<Number> dashArray = (ArrayList<Number>) args.get(0);
-							float phase = ((Number) args.get(1)).floatValue();
-							
-							page.state.dashArray = dashArray;
-							page.state.phase = phase;
-							break;
-						case 25:
-							page.state.colorStroking = new Color(
-									((Number) args.get(0)).floatValue(),
-									((Number) args.get(0)).floatValue(),
-									((Number) args.get(0)).floatValue());
-							break;
-						case 26:
-							page.state.colorNonStroking = new Color(
-									((Number) args.get(0)).floatValue(),
-									((Number) args.get(0)).floatValue(),
-									((Number) args.get(0)).floatValue());
-							break;
-						case 31:
-							switch(((Number) args.get(0)).intValue()) {
-								case 0:
-									page.state.lineJoin = BasicStroke.JOIN_MITER;
-									break;
-								case 1:
-									page.state.lineJoin = BasicStroke.JOIN_ROUND;
-									break;
-								case 2:
-									page.state.lineJoin = BasicStroke.JOIN_BEVEL;
-									break;
-							}
-							break;
-						case 32:
-							switch(((Number) args.get(0)).intValue()) {
-								case 0:
-									page.state.lineCap = BasicStroke.CAP_BUTT;
-									break;
-								case 1:
-									page.state.lineCap = BasicStroke.CAP_ROUND;
-									break;
-								case 2:
-									page.state.lineCap = BasicStroke.CAP_SQUARE;
-									break;
-							}
-							break;
-						case 36:
-							Point2D m1 = Transform.user_device(((Number) args.get(0)).doubleValue(),
-									((Number) args.get(1)).doubleValue(), page.state);
-							
-							GeneralPath path = new GeneralPath();
-							path.moveTo(m1.getX(), m1.getY());
-							scanPath(g, page, stream, path);
-							break;
-						case 37:
-							page.state.miterLimit = ((Number) args.get(0)).floatValue();
-							break;
-						case 42:
-							Point2D re1 = Transform.user_device(((Number) args.get(0)).doubleValue(),
-									((Number) args.get(1)).doubleValue(), page.state);
-							Point2D re2 = Transform.user_device(((Number) args.get(2)).doubleValue(),
-									((Number) args.get(3)).doubleValue(), page.state);
-							
-							Point2D zero = Transform.user_device(0,  0,  page.state);
-							
-							GeneralPath path1 = new GeneralPath();
-							path1.moveTo(re1.getX(), re1.getY());
-							path1.lineTo(re1.getX() + re2.getX() - zero.getX(), re1.getY());
-							path1.lineTo(re1.getX() + re2.getX() - zero.getX(), re1.getY() + re2.getY() - zero.getY());
-							path1.lineTo(re1.getX(), re1.getY() + re2.getY() - zero.getY());
-							path1.closePath();
-							scanPath(g, page, stream, path1);
-							break;
-						case 43:
-							page.state.colorStroking = new Color(
-									((Number) args.get(0)).floatValue(),
-									((Number) args.get(1)).floatValue(),
-									((Number) args.get(2)).floatValue());
-							break;
-						case 44:
-							page.state.colorNonStroking = new Color(
-									((Number) args.get(0)).floatValue(),
-									((Number) args.get(1)).floatValue(),
-									((Number) args.get(2)).floatValue());
-							break;
-						case 48:
-							switch(page.state.colorSpaceStroking) {
-								case "DeviceRGB":
-									page.state.colorStroking = new Color(
-											((Number) args.get(0)).floatValue(),
-											((Number) args.get(1)).floatValue(),
-											((Number) args.get(2)).floatValue());
-									break;
-								case "DeviceCMYK":
-									float[] values_cmyk = {((Number) args.get(0)).floatValue(),
-											((Number) args.get(1)).floatValue(),
-											((Number) args.get(2)).floatValue(),
-											((Number) args.get(3)).floatValue()
-									};
-									page.state.colorStroking = new Color(
-											ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
-											values_cmyk, 0.0f);
-									break;
-								case "DeviceGray":
-									page.state.colorStroking = new Color(((Number) args.get(0)).floatValue(),
-											((Number) args.get(0)).floatValue(),
-											((Number) args.get(0)).floatValue());
-									break;
-							}
-							break;
-						case 49:
-							switch(page.state.colorSpaceNonStroking) {
-								case "DeviceRGB":
-									page.state.colorNonStroking = new Color(
-											((Number) args.get(0)).floatValue(),
-											((Number) args.get(1)).floatValue(),
-											((Number) args.get(2)).floatValue());
-									break;
-								case "DeviceCMYK":
-									float[] values_cmyk = {((Number) args.get(0)).floatValue(),
-											((Number) args.get(1)).floatValue(),
-											((Number) args.get(2)).floatValue(),
-											((Number) args.get(3)).floatValue()
-									};
-									page.state.colorNonStroking = new Color(
-											ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
-											values_cmyk, 0.0f);
-									break;
-								case "DeviceGray":
-									page.state.colorNonStroking = new Color(((Number) args.get(0)).floatValue(),
-											((Number) args.get(0)).floatValue(),
-											((Number) args.get(0)).floatValue());
-									break;
-							}
-							break;
-						case 54:
-							page.state.charSpace = (float) ((Number) args.get(0)).floatValue();
-							break;
-						case 55:
-							page.state.setTextStart(1, 0, 0, 1, 
-									((Number) args.get(0)).floatValue(), 
-									((Number) args.get(1)).floatValue());
-							break;
-						case 56:
-							page.state.leading = (float) ((Number) args.get(1)).floatValue();
-							page.state.setTextStart(1, 0, 0, 1, 
-									((Number) args.get(0)).floatValue(), 
-									((Number) args.get(1)).floatValue());
-							break;
-						case 57:
-							page.state.font = (String) args.get(0);
-							page.state.fontSize = Transform.scale(((Number) args.get(1)).intValue(), page.state);
-							break;
-						case 60:
-							page.state.leading = (float) ((Number) args.get(0)).floatValue();
-							break;
-						case 61:
-							page.state.setTextStart(((Number) args.get(0)).floatValue(),
-									((Number) args.get(1)).floatValue(), 
-									((Number) args.get(2)).floatValue(), 
-									((Number) args.get(3)).floatValue(), 
-									((Number) args.get(4)).floatValue(), 
-									((Number) args.get(5)).floatValue());
-							break;
-						case 62:
-							page.state.renderMode = (int) ((Number) args.get(0)).intValue();
-							break;
-						case 63:
-							page.state.textRise = (float) ((Number) args.get(0)).floatValue();
-							break;
-						case 64:
-							page.state.wordSpace = (float) ((Number) args.get(0)).floatValue();
-							break;
-						case 65:
-							page.state.textScale = (float) ((Number) args.get(0)).floatValue();
-							break;
-						case 67:
-							page.state.lineWidth = ((Number) args.get(0)).floatValue();
+							res.append('\r');
 							break;
 					}
-					args.clear();
+				}
+			}
+			else {
+				res.append(next);
+			}
+			next = nextChar();
+		}
+		
+		return res.toString();
+	}
+	
+	/*
+	 * Scans in a string represented by two hexadecimal numerals. Skips non-hex characters and appends a 0 
+	 * at the end if there are an odd number of hex numerals.
+	 */
+	public String scanHexString() {
+		StringBuilder res = new StringBuilder();
+		StringBuilder hex = new StringBuilder();
+		char next = nextChar();
+		while(next != '>') {		
+			if(HEX.indexOf((char)next) >= 0) {
+				if(hex.length() >= 2) {
+					res.append((char) Integer.parseInt(hex.toString(), 16));
+					hex = new StringBuilder();
+					if(HEX.indexOf((char)next) >= 0) {
+						hex.append(next);
+					}
 				}
 				else {
-					args.add(next);
+					hex.append(next);
 				}
 			}
+			next = nextChar();
+		}
+		
+		if(hex.length() == 1) {
+			hex.append('0');
+		}
+		res.append((char) Integer.parseInt(hex.toString(), 16));
+		return res.toString();
+	}
+	
+	/*
+	 * Scans in a name denoted by a '/' preceding it. 
+	 */
+	public String scanName() {
+		StringBuilder res = new StringBuilder();
+		char next = nextChar();
+		while(true) {
+			if(next == '#') {
+				StringBuilder hex = new StringBuilder();
+				next = nextChar();
+				if(HEX.indexOf(next) >= 0) {
+					hex.append(next);
+					next = nextChar();
+					if(HEX.indexOf(next) >= 0) {
+						hex.append(next);
+					}
+					res.append((char) Integer.parseInt(hex.toString(), 16));
+				}
+				if(hex.length() == 0) {
+					res.append('#');
+					res.append(next);
+				}
+			}
+			else if((DELIMITER.indexOf(next) >= 0) || isWhiteSpace(next)) {
+				filter.back();
+				//System.out.println(res.toString());
+				return res.toString();
+			}
+			else {
+				res.append(next);
+			}
+			next = nextChar();
 		}
 	}
 	
-	private void scanPath(Graphics2D g, Page page, PdfStream stream, GeneralPath path) {
-		boolean endPath = false;
-		
-		g.setColor(Color.BLACK);
-		
-		ArrayList<Object> args = new ArrayList<Object>();
-		while(fScanner.getPosition() < stream.endPos && endPath == false) {
-			pScanner.skipWhiteSpace();
-			Object next = pScanner.scanNext();
-			if(next instanceof PdfOperator) {
-				System.out.println(((PdfOperator) next) + ", " + args.toString());
-				switch(((PdfOperator)next).id) {
-					case 0:
-						path.closePath();
-						path.setWindingRule(GeneralPath.WIND_NON_ZERO);				
-						gScanner.gutenbergDrawer.fillPath(g, page, path);
-						gScanner.gutenbergDrawer.drawPath(g, page, path);
-						endPath = true;
-						break;
-					case 1:
-						path.setWindingRule(GeneralPath.WIND_NON_ZERO);				
-						gScanner.gutenbergDrawer.fillPath(g, page, path);
-						gScanner.gutenbergDrawer.drawPath(g, page, path);
-						endPath = true;
-						break;
-					case 2:
-						path.closePath();
-						path.setWindingRule(GeneralPath.WIND_EVEN_ODD);				
-						gScanner.gutenbergDrawer.fillPath(g, page, path);
-						gScanner.gutenbergDrawer.drawPath(g, page, path);
-						endPath = true;
-						break;
-					case 3:
-						path.setWindingRule(GeneralPath.WIND_EVEN_ODD);				
-						gScanner.gutenbergDrawer.fillPath(g, page, path);
-						gScanner.gutenbergDrawer.drawPath(g, page, path);
-						endPath = true;
-						break;
-					case 9:
-						Point2D c1 = Transform.user_device(((Number) args.get(0)).doubleValue(),
-								((Number) args.get(1)).doubleValue(), page.state);
-						Point2D c2 = Transform.user_device(((Number) args.get(2)).doubleValue(),
-								((Number) args.get(3)).doubleValue(), page.state);
-						Point2D c3 = Transform.user_device(((Number) args.get(4)).doubleValue(),
-								((Number) args.get(5)).doubleValue(), page.state);	
-
-						path.curveTo(c1.getX(), c1.getY(), c2.getX(), c2.getY(), c3.getX(), c3.getY());
-						break;
-					case 11:
-						//A lot of the color spaces are not implemented
-						String space11 = (String) args.get(0);
-						page.state.colorSpaceStroking = space11;
-						switch(space11) {
-							case "DeviceGray":
-								page.state.colorStroking = Color.BLACK;
-								break;
-							case "DeviceRGB":
-								page.state.colorStroking = Color.BLACK;
-								break;
-							case "DeviceCMYK":
-								float[] default_cmyk = {0.0f, 0.0f, 0.0f, 1.0f};
-								page.state.colorStroking = new Color(
-										ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
-										default_cmyk, 1.0f);
-								break;
-							default:
-								page.state.colorSpaceStroking = (String) args.get(0);
-								break;
-						}
-						break;
-					case 12:
-						//A lot of the color spaces are not implemented
-						String space12 = (String) args.get(0);
-						page.state.colorSpaceNonStroking = space12;
-						switch(space12) {
-							case "DeviceGray":
-								page.state.colorNonStroking = Color.BLACK;
-								break;
-							case "DeviceRGB":
-								page.state.colorNonStroking = Color.BLACK;
-								break;
-							case "DeviceCMYK":
-								float[] default_cmyk = {0.0f, 0.0f, 0.0f, 1.0f};
-								page.state.colorNonStroking = new Color(
-										ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
-										default_cmyk, 1.0f);
-								break;
-							default:
-								page.state.colorSpaceNonStroking = (String) args.get(0);
-								break;
-						}
-						break;
-					case 13:
-						@SuppressWarnings("unchecked")
-						ArrayList<Number> dashArray = (ArrayList<Number>) args.get(0);
-						float phase = ((Number) args.get(1)).floatValue();
-						
-						page.state.dashArray = dashArray;
-						page.state.phase = phase;
-						break;
-					case 22:
-						path.setWindingRule(GeneralPath.WIND_NON_ZERO);
-						gScanner.gutenbergDrawer.fillPath(g, page, path);
-						endPath = true;
-						break;
-					case 23:
-						path.setWindingRule(GeneralPath.WIND_EVEN_ODD);
-						gScanner.gutenbergDrawer.fillPath(g, page, path);
-						endPath = true;
-						break;
-					case 24:
-						path.setWindingRule(GeneralPath.WIND_NON_ZERO);
-						gScanner.gutenbergDrawer.fillPath(g, page, path);
-						endPath = true;
-						break;
-					case 25:
-						page.state.colorStroking = new Color(
-								((Number) args.get(0)).floatValue(),
-								((Number) args.get(0)).floatValue(),
-								((Number) args.get(0)).floatValue());
-						break;
-					case 26:
-						page.state.colorNonStroking = new Color(
-								((Number) args.get(0)).floatValue(),
-								((Number) args.get(0)).floatValue(),
-								((Number) args.get(0)).floatValue());
-						break;
-					case 28:
-						path.closePath();
-						break;
-					case 31:
-						switch(((Number) args.get(0)).intValue()) {
-							case 0:
-								page.state.lineJoin = BasicStroke.JOIN_MITER;
-								break;
-							case 1:
-								page.state.lineJoin = BasicStroke.JOIN_ROUND;
-								break;
-							case 2:
-								page.state.lineJoin = BasicStroke.JOIN_BEVEL;
-								break;
-						}
-						break;
-					case 32:
-						switch(((Number) args.get(0)).intValue()) {
-							case 0:
-								page.state.lineCap = BasicStroke.CAP_BUTT;
-								break;
-							case 1:
-								page.state.lineCap = BasicStroke.CAP_ROUND;
-								break;
-							case 2:
-								page.state.lineCap = BasicStroke.CAP_SQUARE;
-								break;
-						}
-						break;
-					case 35:
-						Point2D l1 = Transform.user_device(((Number) args.get(0)).doubleValue(),
-								((Number) args.get(1)).doubleValue(), page.state);
-						
-						path.lineTo(l1.getX(), l1.getY()); 
-						break;
-					case 36:
-						Point2D m1 = Transform.user_device(((Number) args.get(0)).doubleValue(),
-								((Number) args.get(1)).doubleValue(), page.state);
-						
-						path.moveTo(m1.getX(), m1.getY());
-						break;
-					case 37:
-						page.state.miterLimit = ((Number) args.get(0)).floatValue();
-						break;
-					case 39:
-						endPath = true;
-						break;
-					case 42:
-						Point2D re1 = Transform.user_device(((Number) args.get(0)).doubleValue(),
-								((Number) args.get(1)).doubleValue(), page.state);
-						Point2D re2 = Transform.user_device(((Number) args.get(2)).doubleValue(),
-								((Number) args.get(3)).doubleValue(), page.state);
-						
-						Point2D zero = Transform.user_device(0,  0,  page.state);
-						
-						GeneralPath path1 = new GeneralPath();
-						path1.moveTo(re1.getX(), re1.getY());
-						path1.lineTo(re1.getX() + re2.getX() - zero.getX(), re1.getY());
-						path1.lineTo(re1.getX() + re2.getX() - zero.getX(), re1.getY() + re2.getY() - zero.getY());
-						path1.lineTo(re1.getX(), re1.getY() + re2.getY() - zero.getY());
-						path.closePath();
-						break;
-					case 43:
-						page.state.colorStroking = new Color(
-								((Number) args.get(0)).floatValue(),
-								((Number) args.get(1)).floatValue(),
-								((Number) args.get(2)).floatValue());
-						break;
-					case 44:
-						page.state.colorNonStroking = new Color(
-								((Number) args.get(0)).floatValue(),
-								((Number) args.get(1)).floatValue(),
-								((Number) args.get(2)).floatValue());
-						break;
-					case 46:
-						path.closePath();
-						gScanner.gutenbergDrawer.drawPath(g, page, path);
-						endPath = true;
-						break;
-					case 47:
-						gScanner.gutenbergDrawer.drawPath(g, page, path);
-						endPath = true;
-						break;
-					case 48:
-						switch(page.state.colorSpaceStroking) {
-							case "DeviceRGB":
-								page.state.colorStroking = new Color(
-										((Number) args.get(0)).floatValue(),
-										((Number) args.get(1)).floatValue(),
-										((Number) args.get(2)).floatValue());
-								break;
-							case "DeviceCMYK":
-								float[] values_cmyk = {((Number) args.get(0)).floatValue(),
-										((Number) args.get(1)).floatValue(),
-										((Number) args.get(2)).floatValue(),
-										((Number) args.get(3)).floatValue()
-								};
-								page.state.colorStroking = new Color(
-										ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
-										values_cmyk, 0.0f);
-								break;
-							case "DeviceGray":
-								page.state.colorStroking = new Color(((Number) args.get(0)).floatValue(),
-										((Number) args.get(0)).floatValue(),
-										((Number) args.get(0)).floatValue());
-								break;
-						}
-						break;
-					case 49:
-						switch(page.state.colorSpaceNonStroking) {
-							case "DeviceRGB":
-								page.state.colorNonStroking = new Color(
-										((Number) args.get(0)).floatValue(),
-										((Number) args.get(1)).floatValue(),
-										((Number) args.get(2)).floatValue());
-								break;
-							case "DeviceCMYK":
-								float[] values_cmyk = {((Number) args.get(0)).floatValue(),
-										((Number) args.get(1)).floatValue(),
-										((Number) args.get(2)).floatValue(),
-										((Number) args.get(3)).floatValue()
-								};
-								page.state.colorNonStroking = new Color(
-										ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
-										values_cmyk, 0.0f);
-								break;
-							case "DeviceGray":
-								page.state.colorNonStroking = new Color(((Number) args.get(0)).floatValue(),
-										((Number) args.get(0)).floatValue(),
-										((Number) args.get(0)).floatValue());
-								break;
-						}
-						break;
-					case 53:
-						page.state.setTextStart(1, 0, 0, 1, 0, page.state.leading);
-						break;
-					case 66:
-						Point2D v1 = Transform.user_device(((Number) args.get(0)).doubleValue(),
-								((Number) args.get(1)).doubleValue(), page.state);
-						Point2D v2 = Transform.user_device(((Number) args.get(2)).doubleValue(),
-								((Number) args.get(3)).doubleValue(), page.state);
-						
-						path.curveTo((double) path.getCurrentPoint().getX(),
-								(double) path.getCurrentPoint().getY(), v1.getX(), v1.getY(), v2.getX(), v2.getY());
-						break;
-					case 67:
-						page.state.lineWidth = ((Number) args.get(0)).floatValue();
-						break;
-					case 70:
-						Point2D y1 = Transform.user_device(((Number) args.get(0)).doubleValue(),
-								((Number) args.get(1)).doubleValue(), page.state);
-						Point2D y2 = Transform.user_device(((Number) args.get(2)).doubleValue(),
-								((Number) args.get(3)).doubleValue(), page.state);
-						
-						path.curveTo(y1.getX(), y1.getY(), y2.getX(), y2.getY(), y2.getX(), y2.getY());
-						break;
-				}
-				args.clear();
-			}
-			else {
-				args.add(next);
-			}
+	/*
+	 * Read everything from the comment until the newline.
+	 */
+	public void scanComment() {
+		char next = nextChar();
+ 		while(next != '\n' && next != '\r') {
+			next = nextChar();
 		}
+ 		filter.back();
 	}
 	
-	private void scanText(Graphics2D g, Page page, PdfStream stream) {
-		boolean endText = false;
-		int x = 0;
-		int y = 0;
-		String text = "";
+	/*
+	 * Scans in an array object.
+	 */
+	public ArrayList<Object> scanArray() { 
+		ArrayList<Object> res = new ArrayList<>();
+		skipWhiteSpace();
+		char next = nextChar();
+		while(next != ']') {
+			filter.back();
+			res.add(scanNext());
+			skipWhiteSpace();
+			next = nextChar();
+		}
 		
-		ArrayList<Object> args = new ArrayList<Object>();
-		while(fScanner.getPosition() < stream.endPos && endText == false) {
-			pScanner.skipWhiteSpace();
-			Object next = pScanner.scanNext();
-			if(next instanceof PdfOperator) {
-				System.out.println(((PdfOperator) next) + ", " + args.toString());
-				switch(((PdfOperator)next).id) {
-					case 11:
-						//A lot of the color spaces are not implemented
-						String space11 = (String) args.get(0);
-						page.state.colorSpaceStroking = space11;
-						switch(space11) {
-							case "DeviceGray":
-								page.state.colorStroking = Color.BLACK;
-								break;
-							case "DeviceRGB":
-								page.state.colorStroking = Color.BLACK;
-								break;
-							case "DeviceCMYK":
-								float[] default_cmyk = {0.0f, 0.0f, 0.0f, 1.0f};
-								page.state.colorStroking = new Color(
-										ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
-										default_cmyk, 1.0f);
-								break;
-							default:
-								page.state.colorSpaceStroking = (String) args.get(0);
-								break;
-						}
-						break;
-					case 12:
-						//A lot of the color spaces are not implemented
-						String space12 = (String) args.get(0);
-						page.state.colorSpaceNonStroking = space12;
-						switch(space12) {
-							case "DeviceGray":
-								page.state.colorNonStroking = Color.BLACK;
-								break;
-							case "DeviceRGB":
-								page.state.colorNonStroking = Color.BLACK;
-								break;
-							case "DeviceCMYK":
-								float[] default_cmyk = {0.0f, 0.0f, 0.0f, 1.0f};
-								page.state.colorNonStroking = new Color(
-										ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
-										default_cmyk, 1.0f);
-								break;
-							default:
-								page.state.colorSpaceNonStroking = (String) args.get(0);
-								break;
-						}
-						break;
-						case 20:
-							gScanner.gutenbergDrawer.drawText(g, page, text, x, y);
-							endText = true;
-							break;
-						case 25:
-							page.state.colorStroking = new Color(
-									((Number) args.get(0)).floatValue(),
-									((Number) args.get(0)).floatValue(),
-									((Number) args.get(0)).floatValue());
-							break;
-						case 26:
-							page.state.colorNonStroking = new Color(
-									((Number) args.get(0)).floatValue(),
-									((Number) args.get(0)).floatValue(),
-									((Number) args.get(0)).floatValue());
-							break;
-						case 43:
-							page.state.colorStroking = new Color(
-									((Number) args.get(0)).floatValue(),
-									((Number) args.get(1)).floatValue(),
-									((Number) args.get(2)).floatValue());
-							break;
-						case 44:
-							page.state.colorNonStroking = new Color(
-									((Number) args.get(0)).floatValue(),
-									((Number) args.get(1)).floatValue(),
-									((Number) args.get(2)).floatValue());
-							break;
-						case 48:
-							switch(page.state.colorSpaceStroking) {
-								case "DeviceRGB":
-									page.state.colorStroking = new Color(
-											((Number) args.get(0)).floatValue(),
-											((Number) args.get(1)).floatValue(),
-											((Number) args.get(2)).floatValue());
-									break;
-								case "DeviceCMYK":
-									float[] values_cmyk = {((Number) args.get(0)).floatValue(),
-											((Number) args.get(1)).floatValue(),
-											((Number) args.get(2)).floatValue(),
-											((Number) args.get(3)).floatValue()
-									};
-									page.state.colorStroking = new Color(
-											ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
-											values_cmyk, 0.0f);
-									break;
-								case "DeviceGray":
-									page.state.colorStroking = new Color(((Number) args.get(0)).floatValue(),
-											((Number) args.get(0)).floatValue(),
-											((Number) args.get(0)).floatValue());
-									break;
-							}
-							break;
-						case 49:
-							switch(page.state.colorSpaceNonStroking) {
-								case "DeviceRGB":
-									page.state.colorNonStroking = new Color(
-											((Number) args.get(0)).floatValue(),
-											((Number) args.get(1)).floatValue(),
-											((Number) args.get(2)).floatValue());
-									break;
-								case "DeviceCMYK":
-									float[] values_cmyk = {((Number) args.get(0)).floatValue(),
-											((Number) args.get(1)).floatValue(),
-											((Number) args.get(2)).floatValue(),
-											((Number) args.get(3)).floatValue()
-									};
-									page.state.colorNonStroking = new Color(
-											ColorSpace.getInstance(ColorSpace.TYPE_CMYK),
-											values_cmyk, 0.0f);
-									break;
-								case "DeviceGray":
-									page.state.colorNonStroking = new Color(((Number) args.get(0)).floatValue(),
-											((Number) args.get(0)).floatValue(),
-											((Number) args.get(0)).floatValue());
-									break;
-							}
-							break;
-						case 53:
-							page.state.setTextStart(1, 0, 0, 1, 0, page.state.leading);
-							break;
-						case 55:
-							page.state.setTextStart(1, 0, 0, 1, 
-									((Number) args.get(0)).floatValue(), 
-									((Number) args.get(1)).floatValue());
-							break;
-						case 56:
-							page.state.leading = (float) ((Number) args.get(1)).floatValue();
-							page.state.setTextStart(1, 0, 0, 1, 
-									((Number) args.get(0)).floatValue(), 
-									((Number) args.get(1)).floatValue());
-							break;
-						case 57:
-							page.state.font = (String) args.get(0);
-							page.state.fontSize = Transform.scale(((Number) args.get(1)).intValue(), page.state);
-							break;
-						case 58:
-							text = (String) args.get(0);
-							break;
-						case 60:
-							page.state.leading = (float) ((Number) args.get(0)).floatValue();
-							break;
-						case 61:
-							page.state.setTextStart(((Number) args.get(0)).floatValue(),
-									((Number) args.get(1)).floatValue(), 
-									((Number) args.get(2)).floatValue(), 
-									((Number) args.get(3)).floatValue(), 
-									((Number) args.get(4)).floatValue(), 
-									((Number) args.get(5)).floatValue());
-							break;
-						case 62:
-							page.state.renderMode = (int) ((Number) args.get(0)).intValue();
-							break;
-						case 63:
-							page.state.textRise = (float) ((Number) args.get(0)).floatValue();
-							break;
-						case 64:
-							page.state.wordSpace = (float) ((Number) args.get(0)).floatValue();
-							break;
-						case 65:
-							page.state.textScale = (float) ((Number) args.get(0)).floatValue();
-							break;
-						case 67:
-							page.state.lineWidth = ((Number) args.get(0)).floatValue();
-							break;
-				}
-				args.clear();
+		return res;
+	}
+	
+	/*
+	 * Scans in a dictionary.
+	 */
+	public HashMap<String, Object> scanDictionary() {
+		HashMap<String, Object> res = new HashMap<>();
+		skipWhiteSpace();
+		char next = nextChar();
+		while(next != '>') {
+			String key;
+			if(next == '/') {
+				key = scanName();
 			}
 			else {
-				args.add(next);
+				key = "NO_KEY";
 			}
+			Object value = scanNext();
+			skipWhiteSpace();
+			res.put(key, value);
+			next = nextChar();
 		}
+		nextChar();
+		return res;
+	}
+	
+	/* 
+	 * Skip white-space characters until the next object
+	 */
+	public void skipWhiteSpace() {
+		char next = nextChar();
+		//Skip comments too
+		while(isWhiteSpace(next) || next == '%') {
+			if(next == '%') {
+				scanComment();
+				next = nextChar();
+			}
+			next = nextChar();
+		}
+		filter.back();
+	}
+	
+	/*
+	 * Simple function for determining whether a character is white-space.
+	 */
+	public boolean isWhiteSpace(char character) {
+		return WHITESPACE.indexOf((char)character) >= 0;
 	}
 }

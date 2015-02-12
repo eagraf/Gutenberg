@@ -11,9 +11,9 @@ import javax.swing.JFrame;
  */
 public class GutenbergCore {
  
-    public static void main(String[] args) throws IOException {
-    	//Path to a test PDF file
-    	File f = new File("C:\\Users\\Ethan\\Desktop\\Gutenberg\\PDF Test\\minimal.pdf");
+    public static void main(String[] args) {
+    	
+    	File f = new File("C:\\Users\\Ethan\\Desktop\\Gutenberg\\PDF Test\\MW - Notes - World War One.pdf");
     	
     	//Initialize the scanner and drawer
     	GutenbergScanner gScanner = new GutenbergScanner(f);

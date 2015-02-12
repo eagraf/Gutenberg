@@ -60,7 +60,7 @@ public class GutenbergScanner {
 					trailerPos = fileScanner.getPosition();
 					pdfScanner.skipWhiteSpace();
 					trailer = (HashMap<String, Object>) pdfScanner.scanNext();
-					System.out.println(trailer);
+					System.out.println("Trailer: " + trailer);
 					break;
 				case XREF:
 					//Find all of the XREF sections
@@ -86,8 +86,8 @@ public class GutenbergScanner {
 	public void scanCatalog() {
 		catalog = (HashMap<String, Object>) crossScanner.getObject(((PdfObjectReference) trailer.get("Root")));
 		pageTree = (HashMap<String, Object>) crossScanner.getObject(((PdfObjectReference) catalog.get("Pages")));
-		System.out.println(catalog);
-		System.out.println(pageTree);
+		System.out.println("Catalog: " + catalog);
+		System.out.println("Page Tree: " + pageTree);
 	}
 	
 	/*
@@ -96,8 +96,7 @@ public class GutenbergScanner {
 	@SuppressWarnings("unchecked")
 	public Page getPage() {
 		HashMap<String, Object> pageObject = (HashMap<String, Object>) crossScanner.getObject((PdfObjectReference) ((ArrayList<Object>) pageTree.get("Kids")).get(0));
-		
-		
+		System.out.println("Page Object: " + pageObject);
 		//The coordinates are temporary.
 		return new Page(this, pageObject, 100, 100);
 	}

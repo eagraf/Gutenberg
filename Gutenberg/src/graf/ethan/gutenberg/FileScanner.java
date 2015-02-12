@@ -14,6 +14,7 @@ import java.nio.channels.FileChannel;
  */
 
 public class FileScanner {
+	public File file;
 	public int length;
 	public int lineNumber;
 	public RandomAccessFile reader;
@@ -25,6 +26,7 @@ public class FileScanner {
 	private static final String DELIMITER = " \t\f\r\n";   
 	
 	public FileScanner(File f) {
+		this.file = f;
 		length = (int) f.length();
 		try {
 			reader = new RandomAccessFile(f, "r");
@@ -69,7 +71,6 @@ public class FileScanner {
 			reader.read(buffer, 0, 1);
 			return (char) buffer[0];
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return 0;
 		}

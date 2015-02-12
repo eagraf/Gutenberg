@@ -55,7 +55,7 @@ public class Page {
 		
 		contents = (PdfObjectReference) pageObject.get("Contents");
 		resources = (HashMap<String, Object>) pageObject.get("Resources");
-		System.out.println(resources);
+		System.out.println("Page Resources: " + resources);
 		fontDictionary = (HashMap<String, Object>) resources.get("Font");
 		
 		this.fonts = scanFonts();
@@ -88,18 +88,32 @@ public class Page {
 		Iterator<Entry<String, Object>> it = fontDictionary.entrySet().iterator();
 	    while (it.hasNext()) {
 	        Map.Entry pairs = (Map.Entry)it.next();
-	        HashMap<String, Object> font = (HashMap<String, Object>) pairs.getValue();
-	        PdfFont newFont;
-	        File fontFile;
-	        switch((String)font.get("BaseFont")) {
-	        	case "Times-Roman":
-	        		fontFile = new File(GutenbergCore.class.getResource("resources/fonts/times.ttf").getFile());
-	        		newFont = new PdfFont("Times-Roman", Font.TRUETYPE_FONT, fontFile);
-	        		res.put((String) pairs.getKey(), newFont);
+	        Object font = pairs.getValue();
+	        if(font.getClass() == HashMap.class) {
+		        PdfFont newFont;
+		        File fontFile;
+		        switch((String)((HashMap<String, Object>) font).get("BaseFont")) {
+		        	case "Times-Roman":
+		        		fontFile = new File(GutenbergCore.class.getResource("resources/fonts/times.ttf").getFile());
+		        		newFont = new PdfFont("Times-Roman", Font.TRUETYPE_FONT, fontFile);
+		        		res.put((String) pairs.getKey(), newFont);
+		        }
+	        }
+	        else if(font.getClass() == PdfObjectReference.class) {
+	        	PdfFont newFont;
+		        File fontFile;
+	        	HashMap<String, Object> fontDictionary = (HashMap<String, Object>) scanner.crossScanner.getObject((PdfObjectReference) font);
+	        	System.out.println("Font: " + fontDictionary);
+	        	switch((String)((HashMap<String, Object>) fontDictionary).get("BaseFont")) {
+		        	case "Times-Roman":
+		        		fontFile = new File(GutenbergCore.class.getResource("resources/fonts/times.ttf").getFile());
+		        		newFont = new PdfFont("Times-Roman", Font.TRUETYPE_FONT, fontFile);
+		        		res.put((String) pairs.getKey(), newFont);
+	        	}
 	        }
 	        it.remove(); // avoids a ConcurrentModificationException
 	    } 
-	    System.out.println(res);
+	    System.out.println("Font Dictionary: " + res);
 	    return res;
 	}
 }
