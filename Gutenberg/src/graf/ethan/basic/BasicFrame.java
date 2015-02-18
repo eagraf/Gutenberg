@@ -16,7 +16,7 @@ import javax.swing.JFrame;
 /*
  * A simple frame class that extends JFrame.
  */
-public class BasicFrame extends JFrame implements KeyListener{
+public class BasicFrame extends JFrame {
 	private static final long serialVersionUID = 1L;
 	private GutenbergDrawer drawer;
 	public Page current;
@@ -29,8 +29,6 @@ public class BasicFrame extends JFrame implements KeyListener{
 		
 		Container cont = getContentPane();
 		cont.setBackground(new Color(0xBDBDBD));
-		cont.setFocusable(true);
-		cont.addKeyListener(this);
 		
 		this.setSize(1080, 720);
     	this.setIconImage(new ImageIcon(GutenbergCore.class.getResource("resources\\gutenberg.png")).getImage());
@@ -38,20 +36,24 @@ public class BasicFrame extends JFrame implements KeyListener{
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         this.setVisible(true);
 		
-		this.addKeyListener(this);
+		this.addKeyListener(new BasicKey(this));
+		BasicMouse m = new BasicMouse(this);
+        addMouseListener(m);
 	}
 	
 	@Override
 	public void paint(Graphics g) {
 		super.paint(g);
+		System.out.println("LOOP");
 		drawer.drawPage(g, current);
 	}
 	
 	public void nextPage() {
-		Page next =drawer.scanner.getPage(pageNum + 1);
+		Page next = drawer.scanner.getPage(pageNum + 1);
 		if(next != null) {
 			current = next;
 			pageNum ++;
+			paint(getGraphics());
 		}
 	}
 	
@@ -60,36 +62,7 @@ public class BasicFrame extends JFrame implements KeyListener{
 		if(prev != null) {
 			current = prev;
 			pageNum --;
-		}
-	}
-
-	@Override
-	public void keyPressed(KeyEvent e) {
-
-	}
-
-	@Override
-	public void keyReleased(KeyEvent e) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void keyTyped(KeyEvent e) {
-		System.out.println("hi");
-		switch(e.getKeyCode()) {
-			case KeyEvent.VK_UP:
-				current.y += 10;
-				break;
-			case KeyEvent.VK_DOWN:
-				current.y -= 10;
-				break;
-			case KeyEvent.VK_LEFT:
-				prevPage();
-				break;
-			case KeyEvent.VK_RIGHT:
-				nextPage();
-				break;
+			paint(getGraphics());
 		}
 	}
 }
