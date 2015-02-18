@@ -20,7 +20,7 @@ public class PdfScanner {
 		"BDC", "BI", "BMC", "BT", 
 		"BX", "c", "cm", "CS", 
 		"cs", "d", "d0", "d1", 
-		"do", "DP", "EI", "EMC",
+		"Do", "DP", "EI", "EMC",
 		"ET", "EX", "f", "F", 
 		"f*", "G", "g", "gs",
 		"h", "i", "ID", "j", 

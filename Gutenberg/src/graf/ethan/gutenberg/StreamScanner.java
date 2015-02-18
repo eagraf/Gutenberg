@@ -1,5 +1,6 @@
 package graf.ethan.gutenberg;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -16,7 +17,7 @@ public class StreamScanner {
 		"BDC", "BI", "BMC", "BT", 
 		"BX", "c", "cm", "CS", 
 		"cs", "d", "d0", "d1", 
-		"do", "DP", "EI", "EMC",
+		"Do", "DP", "EI", "EMC",
 		"ET", "EX", "f", "F", 
 		"f*", "G", "g", "gs",
 		"h", "i", "ID", "j", 
@@ -45,11 +46,12 @@ public class StreamScanner {
 	
 	public long startPos;
 	public long length;
+	long byteCount = 0;
 	
+	public String filterName = "Default";
 	public Filter filter;
-	public GutenbergScanner scanner;
 	
-	boolean done = false;
+	public GutenbergScanner scanner;
 	
 	public StreamScanner(GutenbergScanner scanner) {
 		this.scanner = scanner;
@@ -57,15 +59,21 @@ public class StreamScanner {
 	
 	public PdfOperation nextOperation() {
 		ArrayList<Object> args = new ArrayList<>();
-		while(true) {
-			Object next = scanNext();
-			if(next == null) {
-				return null;
+		try {
+			while(filter.fis.getChannel().position() - filter.startPos < filter.length) {
+				Object next = scanNext();
+				if(next == null) {
+					return null;
+				}
+				else if(next.getClass() == PdfOperator.class) {
+					return new PdfOperation((PdfOperator) next, args);
+				}
+				args.add(next);
 			}
-			else if(next.getClass() == PdfOperator.class) {
-				return new PdfOperation((PdfOperator) next, args);
-			}
-			args.add(next);
+			return null;
+		} catch (IOException e) {
+			e.printStackTrace();
+			return null;
 		}
 	}
 	
@@ -84,6 +92,9 @@ public class StreamScanner {
 		if(scanner.pdfScanner.scanKeyword() == 2) {
 			streamDictionary = (HashMap<String, Object>) scanner.pdfScanner.scanNext();
 			length = ((Number) streamDictionary.get("Length")).longValue();
+			if(streamDictionary.get("Filter") != null) {
+				filterName = (String) streamDictionary.get("Filter");
+			}
 		}
 		else {
 			streamDictionary = null;
@@ -92,12 +103,26 @@ public class StreamScanner {
 		
 		//Begin the scanning process
 		scanner.pdfScanner.scanKeyword();
+		scanner.pdfScanner.skipWhiteSpace();
 		startPos = scanner.fileScanner.getPosition();
-		filter = new Filter(startPos, length, scanner.fileScanner.file);
+		switch(filterName) {
+			case "Default":
+				filter = new Filter(startPos, length, scanner.fileScanner.file);
+				break;
+			case "FlateDecode":
+				filter = new FilterFlate(startPos, length, scanner.fileScanner.file);
+				break;
+		}
 	}
 	
 	public char nextChar() {
+		byteCount ++;
 		return filter.nextChar();
+	}
+	
+	public void back() {
+		filter.back();
+		byteCount --;
 	}
 	
 	/*
@@ -121,7 +146,7 @@ public class StreamScanner {
 						return scanDictionary();
 					}
 					else {
-						filter.back();
+						back();
 						return scanHexString();
 					}
 				//Comment %Comment
@@ -139,12 +164,12 @@ public class StreamScanner {
 			}	
 		}
 		if(NUMERAL.indexOf(next) >= 0) {
-			filter.back();
+			back();
 			skipWhiteSpace();
 			return scanNumeric();
 		}
 		else {
-			filter.back();
+			back();
 			int keyWord = scanKeyword();
 			//Returns for keywords need to be added. Most of these won't be used.
 			switch(keyWord) {
@@ -157,7 +182,6 @@ public class StreamScanner {
 				case 4:
 					//scanStream
 				case 5:
-					done = true;
 					return null;
 				case 6:
 					//scanXref
@@ -180,12 +204,15 @@ public class StreamScanner {
 	public int scanKeyword() {
 		skipWhiteSpace();
 		char next = nextChar();
+		//System.out.println(next);
 		StringBuilder keyword = new StringBuilder();
 		while(!isWhiteSpace(next) && !(DELIMITER.indexOf(next) >= 0)) {
+			//System.out.println(next);
 			keyword.append(next);
 			next = nextChar();
 		}
-		filter.back();
+		//System.out.println(keyword.toString());
+		back();
 		switch(keyword.toString()) {
 			case FALSE:
 				return 0;
@@ -230,7 +257,7 @@ public class StreamScanner {
  			res.append(next);
  			next = nextChar();
  		}
- 		filter.back();
+ 		back();
  		if(isFloat) {
  			return (float) Float.parseFloat(res.toString());
  		}
@@ -255,7 +282,7 @@ public class StreamScanner {
  			res.append(next);
  			next = nextChar();
  		}
- 		filter.back();
+ 		back();
  		return Long.parseLong(res.toString());
  	}
 	
@@ -347,25 +374,19 @@ public class StreamScanner {
 		char next = nextChar();
 		while(next != '>') {		
 			if(HEX.indexOf((char)next) >= 0) {
-				if(hex.length() >= 2) {
-					res.append((char) Integer.parseInt(hex.toString(), 16));
-					hex = new StringBuilder();
-					if(HEX.indexOf((char)next) >= 0) {
-						hex.append(next);
-					}
-				}
-				else {
-					hex.append(next);
-				}
+				hex.append(next);
 			}
 			next = nextChar();
 		}
 		
-		if(hex.length() == 1) {
-			hex.append('0');
-		}
-		res.append((char) Integer.parseInt(hex.toString(), 16));
-		return res.toString();
+		 for( int i=0; i<hex.length()-1; i+=2 ){
+		      String s = hex.substring(i, (i + 2));
+		      byte n = (byte) Integer.parseInt(s, 16);
+		      res.append((char) n);
+		      //System.out.println((char) n);
+		  }
+		  
+		 return res.toString();
 	}
 	
 	/*
@@ -392,7 +413,7 @@ public class StreamScanner {
 				}
 			}
 			else if((DELIMITER.indexOf(next) >= 0) || isWhiteSpace(next)) {
-				filter.back();
+				back();
 				//System.out.println(res.toString());
 				return res.toString();
 			}
@@ -411,7 +432,7 @@ public class StreamScanner {
  		while(next != '\n' && next != '\r') {
 			next = nextChar();
 		}
- 		filter.back();
+ 		back();
 	}
 	
 	/*
@@ -422,7 +443,7 @@ public class StreamScanner {
 		skipWhiteSpace();
 		char next = nextChar();
 		while(next != ']') {
-			filter.back();
+			back();
 			res.add(scanNext());
 			skipWhiteSpace();
 			next = nextChar();
@@ -468,7 +489,7 @@ public class StreamScanner {
 			}
 			next = nextChar();
 		}
-		filter.back();
+		back();
 	}
 	
 	/*

@@ -3,7 +3,8 @@ package graf.ethan.gutenberg;
 import graf.ethan.matrix.Matrix;
 
 import java.awt.Color;
-import java.awt.geom.GeneralPath;
+import java.awt.Rectangle;
+import java.awt.Shape;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -13,13 +14,13 @@ import java.util.Arrays;
  */
 public class GraphicsState {
 	public int resolution;
-	public static Page page;
+	public Page page;
 	
 	public GlyphCache cache;
 	
 	//The Current Transformation Matrix (CTM)
 	//Maps positions from user-space to device-space
-	private float scale = 1.0f;
+	private float scale = 0.75f;
 	public Matrix ctm;
 	public double ctmGraph[][];
 	
@@ -28,7 +29,7 @@ public class GraphicsState {
 	
 	public Matrix textLineMatrix;
 	
-	public GeneralPath clippingPath;
+	public Shape clippingPath;
 	
 	public String colorSpaceStroking = "DeviceGray";
 	public String colorSpaceNonStroking = "DeviceGray";
@@ -50,16 +51,6 @@ public class GraphicsState {
 	public float alphaConstant = 1.0f;
 	public boolean alphSource = false;
 	
-	//Device-dependent graphics state parameters
-	//Overprint
-	//Overprint Mode
-	//Black Generation
-	//Undercolor Removal
-	//Transfer
-	//Halftone
-	//Flatness
-	//Smoothness
-	
 	//Text state variables
 	public float charSpace = 0;
 	public float wordSpace = 0;
@@ -71,7 +62,8 @@ public class GraphicsState {
 	public int fontSize;
 	public String font;
 		
-	public GraphicsState(GutenbergDrawer drawer, Page page) {		
+	public GraphicsState(GutenbergDrawer drawer, Page page) {
+		this.page = page;
 		this.resolution = drawer.RESOLUTION;
 		
 		ctmGraph = new double[3][3];
@@ -148,6 +140,10 @@ public class GraphicsState {
 		trmGraph[2][2] = 1;
 
 		return new Matrix(trmGraph);
+	}
+	
+	public void setClip(int x, int y, int width, int height) {
+		this.clippingPath = new Rectangle(x, y, width, height);
 	}
 	
 	public void incrementText(double width, double height) {

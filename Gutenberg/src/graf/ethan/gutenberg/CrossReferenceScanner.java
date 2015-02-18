@@ -37,7 +37,7 @@ public class CrossReferenceScanner {
 				//Gets the position of the entry's object in the file.
 				long pos = (long) pdfScanner.scanLong();
 				pdfScanner.scanner.setPosition(pos);
-				System.out.println("XREF Scanner Position:" + pos);
+				System.out.println("Reference: " + reference + " XREF Scanner Position:" + pos);
 				return pdfScanner.scanObject().object;
 			}
 		}

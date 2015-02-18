@@ -1,10 +1,8 @@
 package graf.ethan.gutenberg;
 
-import java.awt.Color;
-import java.io.*;
+import graf.ethan.basic.BasicFrame;
 
-import javax.swing.ImageIcon;
-import javax.swing.JFrame;
+import java.io.*;
 
 /*
  * Main file for Gutenberg. Ties together the two main elements, drawer and scanner.
@@ -13,7 +11,7 @@ public class GutenbergCore {
  
     public static void main(String[] args) {
     	
-    	File f = new File("C:\\Users\\Ethan\\Desktop\\Gutenberg\\PDF Test\\MW - Notes - World War One.pdf");
+    	File f = new File("C:\\Users\\Ethan\\Desktop\\Gutenberg\\PDF Test\\MW - Notes - Nationalism in Europe.pdf");
     	
     	//Initialize the scanner and drawer
     	GutenbergScanner gScanner = new GutenbergScanner(f);
@@ -21,11 +19,7 @@ public class GutenbergCore {
     	gScanner.setDrawer(gDrawer);
 
     	//Creates the content frame
-    	GutenbergFrame frame = new GutenbergFrame("Gutenberg", gDrawer);
-    	frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-    	frame.setSize(1080, 720);
-    	frame.setIconImage(new ImageIcon(GutenbergCore.class.getResource("resources\\gutenberg.png")).getImage());
-    	frame.getContentPane().setBackground(new Color(0xBDBDBD));
-    	frame.setVisible(true);
+    	@SuppressWarnings("unused")
+		BasicFrame frame = new BasicFrame("Gutenberg", gDrawer);
     }
 } 

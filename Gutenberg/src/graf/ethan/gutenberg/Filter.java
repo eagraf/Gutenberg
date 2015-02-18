@@ -9,20 +9,15 @@ public class Filter {
 		public long startPos;
 		public long length;
 		
-		private byte[] prevChunk = {};
-		private byte[] chunk = {};
-		private long pos;
-		private int chunkCount = -1;
+		public FileInputStream fis;
 		
-		private FileInputStream fis;
-		
-		boolean done = false;
+		public char curr;
+		public int off = 0;
 		
 		public Filter(long startPos, long length, File f) {
 			this.startPos = startPos;
 			this.length = length;
 			
-			this.pos = (startPos);
 			
 			try {
 				this.fis = new FileInputStream(f);
@@ -32,54 +27,33 @@ public class Filter {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-			
-			prevChunk = new byte[1024];
-			chunk = new byte[1024];
-			
-			nextChunk();
+
+			System.out.println(startPos);
+			System.out.println(length);
 		}
 		
 		public char nextChar() {
-			pos++;
-			if((pos - startPos) - (1024 * chunkCount) >= 1024) {
-				System.out.println(pos);
-				nextChunk();
+			if(off == -1) {
+				off = 0;
+				return curr;
 			}
-			return (char) chunk[(int) ((pos - startPos) - (1024 * chunkCount))];
+			if(off == 0) {
+				read();
+				return curr;
+			}
+			return curr;
 		}
 		
 		public void back() {
-			if(pos - startPos - (1024 * chunkCount) == 0) {
-				chunk = prevChunk;
-				chunkCount--;
-			}
-			pos--;	
+			off--;
 		}
 		
-		public void nextChunk() {
-			prevChunk = chunk;
+		public void read() {
 			try {
-				fis.read(chunk,  0,  1024);
+				curr = (char) fis.read();
+				System.out.println(curr);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-			setChunkCount(getChunkCount() + 1);
-		}
-		
-		public void prevChunk() {
-			this.chunk = prevChunk;
-			setChunkCount(getChunkCount() - 1);
-		}
-
-		public int getChunkCount() {
-			return chunkCount;
-		}
-
-		public void setChunkCount(int chunkCount) {
-			this.chunkCount = chunkCount;
-		}
-
-		public long getPos() {
-			return pos;
 		}
 }

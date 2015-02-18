@@ -19,6 +19,7 @@ public class GutenbergScanner {
 	public PdfScanner pdfScanner;
 	public CrossReferenceScanner crossScanner;
 	public StreamScanner streamScanner;
+	public XObjectScanner xObjectScanner;
 	
 	//Drawers
 	public GutenbergDrawer gutenbergDrawer;
@@ -36,6 +37,7 @@ public class GutenbergScanner {
 	public GutenbergScanner(File f) {
 		fileScanner = new FileScanner(f);
 		pdfScanner = new PdfScanner(fileScanner);
+		this.xObjectScanner = new XObjectScanner(this);
 		firstPass();
 		crossScanner = new CrossReferenceScanner(pdfScanner, xrefs);
 		scanCatalog();
@@ -94,10 +96,13 @@ public class GutenbergScanner {
 	 * Gets a page object to be rendered.
 	 */
 	@SuppressWarnings("unchecked")
-	public Page getPage() {
-		HashMap<String, Object> pageObject = (HashMap<String, Object>) crossScanner.getObject((PdfObjectReference) ((ArrayList<Object>) pageTree.get("Kids")).get(0));
-		System.out.println("Page Object: " + pageObject);
-		//The coordinates are temporary.
-		return new Page(this, pageObject, 100, 100);
+	public Page getPage(int num) {
+		if(num < ((ArrayList<Object>) pageTree.get("Kids")).size()) {
+			HashMap<String, Object> pageObject = (HashMap<String, Object>) crossScanner.getObject((PdfObjectReference) ((ArrayList<Object>) pageTree.get("Kids")).get(num));
+			System.out.println("Page Object: " + pageObject);
+			//The coordinates are temporary.
+			return new Page(this, pageObject, 50, 50);
+		}
+		return null;
 	}
 }

@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Stack;
 
 /*
  * Represents a single page in the PDF. 
@@ -27,38 +28,45 @@ public class Page {
 	public int y;
 	
 	public GutenbergScanner scanner;
+	
+	public HashMap<String, Object> object;
 	public HashMap<String, Object> resources;
 	public HashMap<String, Object> fontDictionary;
+	public HashMap<String, Object> xObjectReferences;
+	public HashMap<String, PdfXObject> xObjects;
+	
 	public PdfObjectReference contents;	
 	
 	public GraphicsState state;
 	
+	public Stack<GraphicsState> stateStack;
+	
 	public HashMap<String, PdfFont> fonts;
 	
-	@SuppressWarnings("unchecked")
 	public Page(GutenbergScanner scanner, HashMap<String, Object> pageObject, int x, int y) {
 		this.scanner = scanner;
 		this.x = x;
 		this.y = y;
 		
-		ArrayList<Integer> rect = getMediaBox(pageObject);
+		this.object = pageObject;
+		
+		ArrayList<Integer> rect = getMediaBox(object);
 		WIDTH = (int) (rect.get(2) - rect.get(0));
 		HEIGHT = (int) (rect.get(3) - rect.get(1));
 		
 		this.state = new GraphicsState(scanner.gutenbergDrawer, this);
+		this.stateStack = new Stack<>();
 		
 		Point2D p1 = Transform.user_device(0, 0, state);
 		Point2D p2 = Transform.user_device(WIDTH, HEIGHT, state);
 	
 		dWidth = (int) (p2.getX() - p1.getX());
 		dHeight = (int) (p1.getY() - p2.getY());
+		state.setClip(x, y, WIDTH, HEIGHT);
 		
 		contents = (PdfObjectReference) pageObject.get("Contents");
-		resources = (HashMap<String, Object>) pageObject.get("Resources");
-		System.out.println("Page Resources: " + resources);
-		fontDictionary = (HashMap<String, Object>) resources.get("Font");
 		
-		this.fonts = scanFonts();
+		getResources();
 	}
 	
 	/*
@@ -76,15 +84,39 @@ public class Page {
 		return rect;
 	}
 	
+	@SuppressWarnings("unchecked")
+	public void getResources() {
+		resources = (HashMap<String, Object>) object.get("Resources");
+		System.out.println("Page Resources: " + resources);
+		
+		if(resources.containsKey("Font")) {
+			fontDictionary = (HashMap<String, Object>) resources.get("Font");
+			this.fonts = getFonts();
+		}
+		
+		if(resources.containsKey("XObject")) {
+			xObjectReferences = (HashMap<String, Object>) resources.get("XObject");
+			getXObjects();
+			System.out.println("XObject References: " + xObjectReferences);
+			System.out.println("XObjects: " + xObjects);
+		}
+	}
+	
+	public void getXObjects() {
+		xObjects = new HashMap<String, PdfXObject>();
+		Iterator<Entry<String, Object>> it = xObjectReferences.entrySet().iterator();
+	    while (it.hasNext()) {
+	    	Entry<String, Object> pairs = it.next();
+	    	xObjects.put((String) pairs.getKey(), scanner.xObjectScanner.scanObject((PdfObjectReference) pairs.getValue()));
+	    }
+	}
+	
 	/*
 	 * Retrieves all of the fonts used in the file.
 	 */
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public HashMap<String, PdfFont> scanFonts() {
+	public HashMap<String, PdfFont> getFonts() {
 		HashMap<String, PdfFont> res = new HashMap<String, PdfFont>();;
-		if(fontDictionary == null) {
-			return null;
-		}
 		Iterator<Entry<String, Object>> it = fontDictionary.entrySet().iterator();
 	    while (it.hasNext()) {
 	        Map.Entry pairs = (Map.Entry)it.next();
@@ -115,5 +147,14 @@ public class Page {
 	    } 
 	    System.out.println("Font Dictionary: " + res);
 	    return res;
+	}
+	
+	public void pushStack() {
+		stateStack.push(state);
+		state = new GraphicsState(scanner.gutenbergDrawer, this);
+	}
+	
+	public void popStack() {
+		state = stateStack.pop();
 	}
 }

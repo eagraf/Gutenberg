@@ -16,6 +16,8 @@ import java.awt.font.GlyphVector;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
+import java.awt.image.AffineTransformOp;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 
 /*
@@ -27,7 +29,7 @@ public class GutenbergDrawer {
 	public GutenbergScanner scanner;
 	
 	public Matrix scaleMatrix;
-	private double scale = 1;
+	private double scale = 0.5;
 	
 	public Graphics2D g;
 
@@ -67,6 +69,7 @@ public class GutenbergDrawer {
 		
 		g.setColor(Color.WHITE);
 		g.fillRect(page.x, page.y, page.dWidth, page.dHeight);
+		g.setClip(page.state.clippingPath);
 		
 		scanner.streamScanner.setStream(page.contents);
 		
@@ -120,10 +123,11 @@ public class GutenbergDrawer {
 		//Determine the font
 		Font font;
 		if(page.state.font != null) {
-			font = page.fonts.get(page.state.font).getFont(Font.PLAIN, (int) (page.state.fontSize * scale));
+			//font = page.fonts.get(page.state.font).getFont(Font.PLAIN, (int) (page.state.fontSize * scale));
+			font = new Font("Times New Roman", Font.PLAIN, 11);
 		}
 		else {
-			font = new Font("Times New Roman", Font.PLAIN, 12);
+			font = new Font("Times New Roman", Font.PLAIN, 11);
 		}
 		
 		FontRenderContext frc = g.getFontRenderContext();
@@ -199,6 +203,8 @@ public class GutenbergDrawer {
 	}
 	
 	public void operate(Page page) {
+		boolean clipNZ = false;
+		boolean clipEO = false;
 		GeneralPath path = new GeneralPath();
 		PdfOperation next = scanner.streamScanner.nextOperation();
 		while(next != null) {
@@ -213,6 +219,18 @@ public class GutenbergDrawer {
 						fillPath(page, path);
 						drawPath(page, path);
 						path = new GeneralPath();
+						if(clipNZ) {
+							path.setWindingRule(GeneralPath.WIND_NON_ZERO);
+							g.clip(path);
+							page.state.clippingPath = g.getClip();
+							clipNZ = false;;
+						}
+						if(clipEO) {
+							path.setWindingRule(GeneralPath.WIND_NON_ZERO);
+							g.clip(path);
+							page.state.clippingPath = g.getClip();
+							clipEO = false;
+						}
 						break;
 					case PdfOperator.OperatorB: 
 						//B: Fill the path, and stroke it, using the non-zero winding rule
@@ -220,6 +238,18 @@ public class GutenbergDrawer {
 						fillPath(page, path);
 						drawPath(page, path);
 						path = new GeneralPath();
+						if(clipNZ) {
+							path.setWindingRule(GeneralPath.WIND_NON_ZERO);
+							g.clip(path);
+							page.state.clippingPath =  g.getClip();
+							clipNZ = false;;
+						}
+						if(clipEO) {
+							path.setWindingRule(GeneralPath.WIND_NON_ZERO);
+							g.clip(path);
+							page.state.clippingPath = g.getClip();
+							clipEO = false;
+						}
 						break;
 					case PdfOperator.Operator_B_Star:
 						//b*: Close the path, fill the path, and stroke it, using the even-odd winding rule
@@ -228,6 +258,18 @@ public class GutenbergDrawer {
 						fillPath(page, path);
 						drawPath(page, path);
 						path = new GeneralPath();
+						if(clipNZ) {
+							path.setWindingRule(GeneralPath.WIND_NON_ZERO);
+							g.clip(path);
+							page.state.clippingPath = g.getClip();
+							clipNZ = false;;
+						}
+						if(clipEO) {
+							path.setWindingRule(GeneralPath.WIND_NON_ZERO);
+							g.clip(path);
+							page.state.clippingPath = g.getClip();
+							clipEO = false;
+						}
 						break;
 					case PdfOperator.OperatorB_Star: 
 						//B*: Fill the path, and stroke it, using the even-odd winding rule
@@ -235,15 +277,31 @@ public class GutenbergDrawer {
 						fillPath(page, path);
 						drawPath(page, path);
 						path = new GeneralPath();
+						if(clipNZ) {
+							path.setWindingRule(GeneralPath.WIND_NON_ZERO);
+							g.clip(path);
+							page.state.clippingPath = g.getClip();
+							clipNZ = false;;
+						}
+						if(clipEO) {
+							path.setWindingRule(GeneralPath.WIND_NON_ZERO);
+							g.clip(path);
+							page.state.clippingPath = g.getClip();
+							clipEO = false;
+						}
 						break;
 					case PdfOperator.OperatorBDC:
+						break;
 					case PdfOperator.OperatorBI:
+						break;
 					case PdfOperator.OperatorBMC:
+						break;
 					case PdfOperator.OperatorBT:
 						//BT: Create a new text object
 						//No operation
 						break;
 					case PdfOperator.OperatorBX:
+						break;
 					case PdfOperator.Operator_C:
 						//c: Append a curve to the current path.
 						Point2D c1 = Transform.user_device(((Number) args.get(0)).doubleValue(),
@@ -256,6 +314,24 @@ public class GutenbergDrawer {
 						path.curveTo(c1.getX(), c1.getY(), c2.getX(), c2.getY(), c3.getX(), c3.getY());
 						break;
 					case PdfOperator.Operator_CM:
+						/*page.state.setCTM(((Number) args.get(0)).doubleValue(),
+								((Number) args.get(1)).doubleValue(),
+								((Number) args.get(2)).doubleValue(),
+								((Number) args.get(3)).doubleValue(),
+								((Number) args.get(4)).doubleValue(),
+								((Number) args.get(5)).doubleValue());*/
+						double[][] cm = {{((Number) args.get(0)).doubleValue(),
+							((Number) args.get(2)).doubleValue(),
+							((Number) args.get(4)).doubleValue(),},
+							{((Number) args.get(1)).doubleValue(),
+							-((Number) args.get(3)).doubleValue(),
+							((Number) args.get(5)).doubleValue(),},
+							{0, 0, 1}};
+							
+							
+						page.state.ctm = Matrix.multiply(new Matrix(cm), page.state.ctm);	
+						System.out.println(page.state.ctm);
+						break;
 					case PdfOperator.OperatorCS:
 						//CS: Set the Color Space for stroking operations
 						//A lot of the color spaces are not implemented
@@ -312,32 +388,92 @@ public class GutenbergDrawer {
 						page.state.phase = phase;
 						break;
 					case PdfOperator.Operator_D0:
+						break;
 					case PdfOperator.Operator_D1:
+						break;
 					case PdfOperator.OperatorDO: 
-					case PdfOperator.OperatorDP: 
-					case PdfOperator.OperatorEI: 
+						PdfXObject object = page.xObjects.get((String) args.get(0));
+						switch((String) object.dictionary.get("Subtype")) {
+							case "Image":
+								BufferedImage image = ((PdfImage) object.object).image;
+								double[][] doGraph = {{(1d/image.getWidth()), 0, 0}, {0, (1d/image.getHeight()), 0}, {0, 0, 1}}; 
+								Matrix transform = Matrix.multiply(new Matrix(doGraph), page.state.ctm);
+								System.out.println(transform);
+								g.drawImage(image,
+										new AffineTransformOp(new AffineTransform(transform.get(0,0),
+												transform.get(1, 0),
+												transform.get(0, 1),
+												transform.get(1, 1),
+												transform.get(0, 2),
+												transform.get(1, 2)),
+												AffineTransformOp.TYPE_BICUBIC), 0, (int) -(transform.get(1, 1) * image.getHeight()));
+								break;
+						}
+						break;
+					case PdfOperator.OperatorDP:
+						break;
+					case PdfOperator.OperatorEI:
+						break;
 					case PdfOperator.OperatorEMC:
+						break;
 					case PdfOperator.OperatorET: 
 						//ET: End the text object.
 						//No operation
 						break;
-					case PdfOperator.OperatorEX: 
+					case PdfOperator.OperatorEX:
+						break;
 					case PdfOperator.Operator_F: 
 						//f: Fill the path using the non-zero winding rule.
 						path.setWindingRule(GeneralPath.WIND_NON_ZERO);
 						fillPath(page, path);
+						if(clipNZ) {
+							path.setWindingRule(GeneralPath.WIND_NON_ZERO);
+							g.clip(path);
+							page.state.clippingPath = g.getClip();
+							clipNZ = false;;
+						}
+						if(clipEO) {
+							path.setWindingRule(GeneralPath.WIND_NON_ZERO);
+							g.clip(path);
+							page.state.clippingPath = g.getClip();
+							clipEO = false;
+						}
 						path = new GeneralPath();
 						break;
 					case PdfOperator.OperatorF:
 						//F: Fill the path using the non-zero winding rule (Obsolete).
 						path.setWindingRule(GeneralPath.WIND_NON_ZERO);
 						fillPath(page, path);
+						if(clipNZ) {
+							path.setWindingRule(GeneralPath.WIND_NON_ZERO);
+							g.clip(path);
+							page.state.clippingPath = g.getClip();
+							clipNZ = false;;
+						}
+						if(clipEO) {
+							path.setWindingRule(GeneralPath.WIND_NON_ZERO);
+							g.clip(path);
+							page.state.clippingPath = g.getClip();
+							clipEO = false;
+						}
 						path = new GeneralPath();
 						break;
 					case PdfOperator.Operator_F_Star:
 						//f: Fill the path using the even-odd winding rule.
 						path.setWindingRule(GeneralPath.WIND_EVEN_ODD);
 						fillPath(page, path);
+						if(clipNZ) {
+							path.setWindingRule(GeneralPath.WIND_NON_ZERO);
+							g.clip(path);
+							page.state.clippingPath = g.getClip();
+							clipNZ = false;;
+						}
+						if(clipEO) {
+							path.setWindingRule(GeneralPath.WIND_NON_ZERO);
+							g.clip(path);
+							page.state.clippingPath = g.getClip();
+							clipEO = false;
+						}
 						path = new GeneralPath();
 						break;
 					case PdfOperator.OperatorG:
@@ -355,12 +491,15 @@ public class GutenbergDrawer {
 								((Number) args.get(0)).floatValue());
 						break;
 					case PdfOperator.Operator_GS:
+						break;
 					case PdfOperator.Operator_H: 
 						//h: Close the current path
 						path.closePath();
 						break;
 					case PdfOperator.Operator_I: 
+						break;
 					case PdfOperator.OperatorID: 
+						break;
 					case PdfOperator.Operator_J: 
 						//j: Set the join parameter for the text space ... Determines how angles in lines are rendered
 						switch(((Number) args.get(0)).intValue()) {
@@ -390,7 +529,9 @@ public class GutenbergDrawer {
 						}
 						break;
 					case PdfOperator.OperatorK:
+						break;
 					case PdfOperator.Operator_K: 
+						break;
 					case PdfOperator.Operator_L:
 						//l: Append a line to the current path.
 						Point2D l1 = Transform.user_device(((Number) args.get(0)).doubleValue(),
@@ -409,12 +550,32 @@ public class GutenbergDrawer {
 						page.state.miterLimit = ((Number) args.get(0)).floatValue();
 						break;
 					case PdfOperator.OperatorMP: 
+						break;
 					case PdfOperator.Operator_N:
 						//n: End the current path.
+						if(clipNZ) {
+							path.setWindingRule(GeneralPath.WIND_NON_ZERO);
+							g.clip(path);
+							page.state.clippingPath = g.getClip();
+							clipNZ = false;;
+						}
+						if(clipEO) {
+							path.setWindingRule(GeneralPath.WIND_NON_ZERO);
+							g.clip(path);
+							page.state.clippingPath = g.getClip();
+							clipEO = false;
+						}
 						path = new GeneralPath();
 						break;
 					case PdfOperator.Operator_Q:
+						page.pushStack();
+						page.state.setClip(page.x, page.y, page.WIDTH, page.HEIGHT);
+						g.setClip(page.state.clippingPath);
+						break;
 					case PdfOperator.OperatorQ:
+						page.popStack();
+						g.setClip(page.state.clippingPath);
+						break;
 					case PdfOperator.Operator_RE:
 						//re: Create a new rectangular path ... equivalent to a MoveTo and three LineTo's
 						Point2D re1 = Transform.user_device(((Number) args.get(0)).doubleValue(),
@@ -446,15 +607,40 @@ public class GutenbergDrawer {
 								((Number) args.get(2)).floatValue());
 						break;
 					case PdfOperator.Operator_RI:
+						break;
 					case PdfOperator.Operator_S: 
 						//s: Close the path and stroke it.
 						path.closePath();
 						drawPath(page, path);
+						if(clipNZ) {
+							path.setWindingRule(GeneralPath.WIND_NON_ZERO);
+							g.clip(path);
+							page.state.clippingPath = g.getClip();
+							clipNZ = false;;
+						}
+						if(clipEO) {
+							path.setWindingRule(GeneralPath.WIND_NON_ZERO);
+							g.clip(path);
+							page.state.clippingPath = g.getClip();
+							clipEO = false;
+						}
 						path = new GeneralPath();
 						break;
 					case PdfOperator.OperatorS:
 						//S: Stroke the path.
 						drawPath(page, path);
+						if(clipNZ) {
+							path.setWindingRule(GeneralPath.WIND_NON_ZERO);
+							g.clip(path);
+							page.state.clippingPath = g.getClip();
+							clipNZ = false;;
+						}
+						if(clipEO) {
+							path.setWindingRule(GeneralPath.WIND_NON_ZERO);
+							g.clip(path);
+							page.state.clippingPath = g.getClip();
+							clipEO = false;
+						}
 						path = new GeneralPath();
 						break;
 					case PdfOperator.OperatorSC: 
@@ -510,8 +696,11 @@ public class GutenbergDrawer {
 						}
 						break;
 					case PdfOperator.OperatorSCN:
+						break;
 					case PdfOperator.Operator_SCN:
+						break;
 					case PdfOperator.Operator_SH:
+						break;
 					case PdfOperator.OperatorT_Star:
 						//T*: Move to the next line.
 						page.state.setTextStart(1, 0, 0, 1, 0, page.state.leading);
@@ -547,8 +736,8 @@ public class GutenbergDrawer {
 						@SuppressWarnings("unchecked")
 						ArrayList<Object> textArray = (ArrayList<Object>) args.get(0);
 						for(int i = 0; i < textArray.size(); i ++) {
-							if(textArray.get(i).getClass().isAssignableFrom(Number.class)) {
-								page.state.incrementText(-((Number) textArray.get(i)).doubleValue(), 0); 
+							if(textArray.get(i).getClass() == Integer.class || textArray.get(i).getClass() == Float.class) {
+								page.state.incrementText(((Number) textArray.get(i)).doubleValue()/-1000, 0); 
 							}
 							else {
 								drawText(page, (String) textArray.get(i));
@@ -578,7 +767,7 @@ public class GutenbergDrawer {
 						break;
 					case PdfOperator.Operator_TW:
 						//Tw: Set the spacing between words
-						page.state.wordSpace = (float) ((Number) args.get(0)).floatValue();
+						 page.state.wordSpace = (float) ((Number) args.get(0)).floatValue();
 						break;
 					case PdfOperator.Operator_TZ:
 						//Tz: Set the horizontal scaling factor for text
@@ -599,7 +788,11 @@ public class GutenbergDrawer {
 						page.state.lineWidth = ((Number) args.get(0)).floatValue();
 						break;
 					case PdfOperator.OperatorW:
+						clipNZ = true;
+						break;
 					case PdfOperator.OperatorW_Star: 
+						clipEO = true;
+						break;
 					case PdfOperator.Operator_Y:
 						//y: Append a curve to the current path, using the end point as a control point.
 						Point2D y1 = Transform.user_device(((Number) args.get(0)).doubleValue(),
@@ -625,5 +818,6 @@ public class GutenbergDrawer {
 			}
 			next = scanner.streamScanner.nextOperation();
 		}		
+		System.out.println("END");
 	}
 }
