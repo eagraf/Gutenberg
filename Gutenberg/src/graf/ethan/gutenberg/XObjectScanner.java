@@ -1,7 +1,6 @@
 package graf.ethan.gutenberg;
 
 import java.awt.Color;
-import java.util.HashMap;
 
 public class XObjectScanner {
 	GutenbergScanner scanner;
@@ -9,7 +8,7 @@ public class XObjectScanner {
 	public long startPos;
 	public long length;
 	
-	public HashMap<String, Object> streamDictionary;
+	public PdfDictionary streamDictionary;
 	
 	public Filter filter;
 	
@@ -20,7 +19,6 @@ public class XObjectScanner {
 		this.scanner = scanner;
 	}
 	
-	@SuppressWarnings("unchecked")
 	public PdfXObject scanObject(PdfObjectReference reference) {
 		scanner.fileScanner.setPosition(scanner.crossScanner.getObjectPosition(reference));
 		
@@ -32,7 +30,7 @@ public class XObjectScanner {
 		scanner.pdfScanner.skipWhiteSpace();
 		
 		if(scanner.pdfScanner.scanKeyword() == 2) {
-			streamDictionary = (HashMap<String, Object>) scanner.pdfScanner.scanNext();
+			streamDictionary = (PdfDictionary) scanner.pdfScanner.scanNext();
 			length = ((Number) streamDictionary.get("Length")).longValue();
 			
 			//Begin the scanning process
@@ -40,11 +38,14 @@ public class XObjectScanner {
 			scanner.pdfScanner.skipWhiteSpace();
 			startPos = scanner.fileScanner.getPosition();
 			
-			if(streamDictionary.containsKey("Filter")) {
+			if(streamDictionary.has("Filter")) {
 				String filterName = (String) streamDictionary.get("Filter");
 				switch(filterName) {
 					case "FlateDecode":
 						filter = new FilterFlate(startPos, length, scanner.fileScanner.file);
+						break;
+					case "DCTDecode":
+						filter = new FilterDCT(startPos, length, scanner.fileScanner.file);
 						break;
 				}
 				System.out.println("Stream Dictionary: " + streamDictionary);
@@ -53,12 +54,14 @@ public class XObjectScanner {
 				filter = new Filter(startPos, length, scanner.fileScanner.file);
 			}
 			
-			if(streamDictionary.containsKey("Subtype")) {
+			if(streamDictionary.has("Subtype")) {
 				String subType = (String) streamDictionary.get("Subtype");
 				//This is incomplete
 				switch(subType) {
 					case("Image"):
 						return new PdfXObject(streamDictionary, scanImage());
+					case("Form"):
+						break;
 				}
 			}	
 		}
@@ -82,7 +85,7 @@ public class XObjectScanner {
 						for(int i = 0; i < 3; i ++) {
 							components[i] = nextComponent(image);
 						}
-						int rgb = new Color(components[0], components[1], components[2]).getRGB();
+						int rgb = new Color(components[2], components[1], components[0]).getRGB();
 						image.image.setRGB(x, y, rgb);
 					}
 				}
@@ -91,7 +94,8 @@ public class XObjectScanner {
 				for(int y = 0; y < height; y ++) {
 					for(int x = 0; x < width; x ++) {
 						int component = nextComponent(image);
-						image.image.setRGB(x, y, component);
+						int rgb = new Color(component, component, component).getRGB();
+						image.image.setRGB(x, y, rgb);
 					}
 				}
 				break;

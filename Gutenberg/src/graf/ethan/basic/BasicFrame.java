@@ -7,8 +7,6 @@ import graf.ethan.gutenberg.Page;
 import java.awt.Color;
 import java.awt.Container;
 import java.awt.Graphics;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
 
 import javax.swing.ImageIcon;
 import javax.swing.JFrame;

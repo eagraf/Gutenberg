@@ -29,10 +29,10 @@ public class Page {
 	
 	public GutenbergScanner scanner;
 	
-	public HashMap<String, Object> object;
-	public HashMap<String, Object> resources;
-	public HashMap<String, Object> fontDictionary;
-	public HashMap<String, Object> xObjectReferences;
+	public PdfDictionary object;
+	public PdfDictionary resources;
+	public PdfDictionary fontDictionary;
+	public PdfDictionary xObjectReferences;
 	public HashMap<String, PdfXObject> xObjects;
 	
 	public PdfObjectReference contents;	
@@ -43,7 +43,7 @@ public class Page {
 	
 	public HashMap<String, PdfFont> fonts;
 	
-	public Page(GutenbergScanner scanner, HashMap<String, Object> pageObject, int x, int y) {
+	public Page(GutenbergScanner scanner, PdfDictionary pageObject, int x, int y) {
 		this.scanner = scanner;
 		this.x = x;
 		this.y = y;
@@ -62,9 +62,9 @@ public class Page {
 	
 		dWidth = (int) (p2.getX() - p1.getX());
 		dHeight = (int) (p1.getY() - p2.getY());
-		state.setClip(x, y, WIDTH, HEIGHT);
+		state.setClip(x, y, dWidth, dHeight);
 		
-		contents = (PdfObjectReference) pageObject.get("Contents");
+		contents = (PdfObjectReference) pageObject.getReference("Contents");
 		
 		getResources();
 	}
@@ -73,29 +73,35 @@ public class Page {
 	 * Gets the dimensions of the page.
 	 */
 	@SuppressWarnings("unchecked")
-	public ArrayList<Integer> getMediaBox(HashMap<String, Object> node) {
+	public ArrayList<Integer> getMediaBox(PdfDictionary object) {
 		ArrayList<Integer> rect;
-		if(node.containsKey("MediaBox")) {
-			rect = (ArrayList<Integer>) node.get("MediaBox");
+		if(object.has("MediaBox")) {
+			rect = (ArrayList<Integer>) object.get("MediaBox");
 		}
 		else {
-			rect = getMediaBox((HashMap<String, Object>) scanner.crossScanner.getObject((PdfObjectReference) node.get("Parent")));
+			rect = getMediaBox((PdfDictionary) scanner.crossScanner.getObject((PdfObjectReference) object.get("Parent")));
 		}
 		return rect;
 	}
 	
-	@SuppressWarnings("unchecked")
 	public void getResources() {
-		resources = (HashMap<String, Object>) object.get("Resources");
-		System.out.println("Page Resources: " + resources);
+		if(object.has("Resources")) {
+			resources = (PdfDictionary) object.get("Resources");
+			System.out.println("Page Resources: " + resources);
+		}
 		
-		if(resources.containsKey("Font")) {
-			fontDictionary = (HashMap<String, Object>) resources.get("Font");
+		if(resources.has("Font")) {
+			if(resources.get("Font").getClass() == HashMap.class) {
+				fontDictionary = (PdfDictionary) resources.get("Font");
+			}
+			else {
+				fontDictionary = (PdfDictionary) resources.get("Font");
+			}
 			this.fonts = getFonts();
 		}
 		
-		if(resources.containsKey("XObject")) {
-			xObjectReferences = (HashMap<String, Object>) resources.get("XObject");
+		if(resources.has("XObject")) {
+			xObjectReferences = (PdfDictionary) resources.get("XObject");
 			getXObjects();
 			System.out.println("XObject References: " + xObjectReferences);
 			System.out.println("XObjects: " + xObjects);
@@ -104,7 +110,7 @@ public class Page {
 	
 	public void getXObjects() {
 		xObjects = new HashMap<String, PdfXObject>();
-		Iterator<Entry<String, Object>> it = xObjectReferences.entrySet().iterator();
+		Iterator<Entry<String, Object>> it = xObjectReferences.getDict().entrySet().iterator();
 	    while (it.hasNext()) {
 	    	Entry<String, Object> pairs = it.next();
 	    	xObjects.put((String) pairs.getKey(), scanner.xObjectScanner.scanObject((PdfObjectReference) pairs.getValue()));
@@ -117,7 +123,7 @@ public class Page {
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public HashMap<String, PdfFont> getFonts() {
 		HashMap<String, PdfFont> res = new HashMap<String, PdfFont>();;
-		Iterator<Entry<String, Object>> it = fontDictionary.entrySet().iterator();
+		Iterator<Entry<String, Object>> it = fontDictionary.getDict().entrySet().iterator();
 	    while (it.hasNext()) {
 	        Map.Entry pairs = (Map.Entry)it.next();
 	        Object font = pairs.getValue();
@@ -134,9 +140,9 @@ public class Page {
 	        else if(font.getClass() == PdfObjectReference.class) {
 	        	PdfFont newFont;
 		        File fontFile;
-	        	HashMap<String, Object> fontDictionary = (HashMap<String, Object>) scanner.crossScanner.getObject((PdfObjectReference) font);
+	        	PdfDictionary fontDictionary = (PdfDictionary) scanner.crossScanner.getObject((PdfObjectReference) font);
 	        	System.out.println("Font: " + fontDictionary);
-	        	switch((String)((HashMap<String, Object>) fontDictionary).get("BaseFont")) {
+	        	switch((String)((PdfDictionary) fontDictionary).get("BaseFont")) {
 		        	case "Times-Roman":
 		        		fontFile = new File(GutenbergCore.class.getResource("resources/fonts/times.ttf").getFile());
 		        		newFont = new PdfFont("Times-Roman", Font.TRUETYPE_FONT, fontFile);

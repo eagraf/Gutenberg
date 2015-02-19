@@ -19,7 +19,7 @@ public class PdfImage {
 		this.bitsPerComponent = bpc;
 		this.colorSpace = colorSpace;
 		
-		image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+		image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 	
 		switch(colorSpace) {
 			case "DeviceGray":	

@@ -2,7 +2,6 @@ package graf.ethan.gutenberg;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.HashMap;
 
 /*
  * The main scanner class for Gutenberg, responsible for navigating the PDF's basic structure.
@@ -30,18 +29,17 @@ public class GutenbergScanner {
 	public ArrayList<CrossReferenceSection> xrefs;
 	
 	//File Dictionaries
-	public HashMap<String, Object> trailer;
-	public HashMap<String, Object> catalog;
-	public HashMap<String, Object> pageTree;
+	public PdfDictionary trailer;
+	public PdfDictionary catalog;
+	public PdfDictionary pageTree;
 	
 	public GutenbergScanner(File f) {
-		fileScanner = new FileScanner(f);
-		pdfScanner = new PdfScanner(fileScanner);
+		this.fileScanner = new FileScanner(f);
+		this.pdfScanner = new PdfScanner(this);
 		this.xObjectScanner = new XObjectScanner(this);
+		this.streamScanner = new StreamScanner(this);
 		firstPass();
-		crossScanner = new CrossReferenceScanner(pdfScanner, xrefs);
-		scanCatalog();
-		streamScanner = new StreamScanner(this);
+		scanCatalog();	
 	}
 	
 	public void setDrawer(GutenbergDrawer drawer) {
@@ -51,7 +49,6 @@ public class GutenbergScanner {
 	/*
 	 * Finds and marks the locations of important structures.
 	 */
-	@SuppressWarnings("unchecked")
 	public void firstPass() {
 		String nextLine = fileScanner.nextLine();
 		xrefs = new ArrayList<>();
@@ -61,7 +58,7 @@ public class GutenbergScanner {
 					//Find the trailer
 					trailerPos = fileScanner.getPosition();
 					pdfScanner.skipWhiteSpace();
-					trailer = (HashMap<String, Object>) pdfScanner.scanNext();
+					trailer = (PdfDictionary) pdfScanner.scanNext();
 					System.out.println("Trailer: " + trailer);
 					break;
 				case XREF:
@@ -71,6 +68,7 @@ public class GutenbergScanner {
 					pdfScanner.skipWhiteSpace();
 					int length = (int) pdfScanner.scanNumeric().intValue();
 					xrefs.add(new CrossReferenceSection(startNum, length, fileScanner.getPosition()));
+					crossScanner = new CrossReferenceScanner(pdfScanner, xrefs);
 					break;
 				case STARTXREF:
 					//Find the startxref marker at the end of the file.
@@ -84,10 +82,9 @@ public class GutenbergScanner {
 	/*
 	 * Scans the file catalog, which contains important information about the PDF.
 	 */
-	@SuppressWarnings("unchecked")
 	public void scanCatalog() {
-		catalog = (HashMap<String, Object>) crossScanner.getObject(((PdfObjectReference) trailer.get("Root")));
-		pageTree = (HashMap<String, Object>) crossScanner.getObject(((PdfObjectReference) catalog.get("Pages")));
+		catalog = (PdfDictionary) trailer.get("Root");
+		pageTree = (PdfDictionary) catalog.get("Pages");
 		System.out.println("Catalog: " + catalog);
 		System.out.println("Page Tree: " + pageTree);
 	}
@@ -98,7 +95,7 @@ public class GutenbergScanner {
 	@SuppressWarnings("unchecked")
 	public Page getPage(int num) {
 		if(num < ((ArrayList<Object>) pageTree.get("Kids")).size()) {
-			HashMap<String, Object> pageObject = (HashMap<String, Object>) crossScanner.getObject((PdfObjectReference) ((ArrayList<Object>) pageTree.get("Kids")).get(num));
+			PdfDictionary pageObject = (PdfDictionary) crossScanner.getObject((PdfObjectReference) ((ArrayList<Object>) pageTree.get("Kids")).get(num));
 			System.out.println("Page Object: " + pageObject);
 			//The coordinates are temporary.
 			return new Page(this, pageObject, 50, 50);

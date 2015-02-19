@@ -137,6 +137,8 @@ public class GutenbergDrawer {
 		GeneralPath path;
 		GlyphMetrics metrics;
 		
+		GeneralPath clip = new GeneralPath();
+		
 		for(int i = 0; i < length; i ++) {
 			Point2D p = gv.getGlyphPosition(i);
 			if(page.state.cache.has(font, text.charAt(i), page.state.textScale)) {
@@ -166,30 +168,44 @@ public class GutenbergDrawer {
 			path = new GeneralPath(t.createTransformedShape(path));
 			switch(page.state.renderMode) {
 				case 0:
+					//Just fill the glyph.
 					fillPath(page, path);
 					break;
 				case 1:
+					//Just stroke the glyph.
 					drawPath(page, path);
 					break;
 				case 2:
+					//Stroke and fill the glyph.
 					drawPath(page, path);
 					fillPath(page, path);
 					break;
 				case 3:
-					//Invisible
+					//Don't display the glyph.
 					break;
 				case 4:
-					//Clipping rendering modes ... will  implement later
+					//Fill the glyph and add to the clip.
+					fillPath(page, path);
+					clip.append(path,  false);
 					break;
 				case 5:
+					//Stroke the glyph and add to the clip.
+					drawPath(page, path);
+					clip.append(path, false);
 					break;
 				case 6:
+					//Stroke, fill and add glyph to clip.
+					fillPath(page, path);
+					drawPath(page, path);
+					clip.append(path, false);
 					break;
 				case 7:
+					//Add glyph to the clip.
+					clip.append(path, false);
 					break;
 			}
 			
-			
+			//Increment the text matrix forward to the origin of the next glyph.
 			if(text.charAt(i) != ' ') {
 				page.state.incrementText(((metrics.getAdvanceX() * 3/4) + page.state.charSpace) * loc.getScaleX(),
 						metrics.getAdvanceY() * 3/4);
@@ -197,11 +213,17 @@ public class GutenbergDrawer {
 			else {
 				page.state.incrementText(((metrics.getAdvanceX() * 3/4) + page.state.wordSpace) * loc.getScaleX(),
 						metrics.getAdvanceY() * 3/4);
-
 			}
+		}
+		//Add glyphs to clipping path.
+		if(page.state.renderMode == 4 || page.state.renderMode == 5 || page.state.renderMode == 6 || page.state.renderMode == 7) {
+			g.clip(clip);
 		}
 	}
 	
+	/*
+	 * This function performs the operations described in a content stream.
+	 */
 	public void operate(Page page) {
 		boolean clipNZ = false;
 		boolean clipEO = false;
@@ -314,12 +336,6 @@ public class GutenbergDrawer {
 						path.curveTo(c1.getX(), c1.getY(), c2.getX(), c2.getY(), c3.getX(), c3.getY());
 						break;
 					case PdfOperator.Operator_CM:
-						/*page.state.setCTM(((Number) args.get(0)).doubleValue(),
-								((Number) args.get(1)).doubleValue(),
-								((Number) args.get(2)).doubleValue(),
-								((Number) args.get(3)).doubleValue(),
-								((Number) args.get(4)).doubleValue(),
-								((Number) args.get(5)).doubleValue());*/
 						double[][] cm = {{((Number) args.get(0)).doubleValue(),
 							((Number) args.get(2)).doubleValue(),
 							((Number) args.get(4)).doubleValue(),},
@@ -328,9 +344,7 @@ public class GutenbergDrawer {
 							((Number) args.get(5)).doubleValue(),},
 							{0, 0, 1}};
 							
-							
 						page.state.ctm = Matrix.multiply(new Matrix(cm), page.state.ctm);	
-						System.out.println(page.state.ctm);
 						break;
 					case PdfOperator.OperatorCS:
 						//CS: Set the Color Space for stroking operations
@@ -392,13 +406,13 @@ public class GutenbergDrawer {
 					case PdfOperator.Operator_D1:
 						break;
 					case PdfOperator.OperatorDO: 
+						//Do: Perform the operation associated with an XObject (e.g. displaying an image).
 						PdfXObject object = page.xObjects.get((String) args.get(0));
 						switch((String) object.dictionary.get("Subtype")) {
 							case "Image":
 								BufferedImage image = ((PdfImage) object.object).image;
 								double[][] doGraph = {{(1d/image.getWidth()), 0, 0}, {0, (1d/image.getHeight()), 0}, {0, 0, 1}}; 
 								Matrix transform = Matrix.multiply(new Matrix(doGraph), page.state.ctm);
-								System.out.println(transform);
 								g.drawImage(image,
 										new AffineTransformOp(new AffineTransform(transform.get(0,0),
 												transform.get(1, 0),
@@ -568,11 +582,13 @@ public class GutenbergDrawer {
 						path = new GeneralPath();
 						break;
 					case PdfOperator.Operator_Q:
+						//q: Push the current graphics state onto the graphics state stack.
 						page.pushStack();
-						page.state.setClip(page.x, page.y, page.WIDTH, page.HEIGHT);
+						page.state.setClip(page.x, page.y, page.dWidth, page.dHeight);
 						g.setClip(page.state.clippingPath);
 						break;
 					case PdfOperator.OperatorQ:
+						//Q: Pop the previous graphics state from the graphics state stack.
 						page.popStack();
 						g.setClip(page.state.clippingPath);
 						break;
@@ -788,9 +804,11 @@ public class GutenbergDrawer {
 						page.state.lineWidth = ((Number) args.get(0)).floatValue();
 						break;
 					case PdfOperator.OperatorW:
+						//Add the current path to the clipping path when the object is ended.
 						clipNZ = true;
 						break;
 					case PdfOperator.OperatorW_Star: 
+						//Add the current path to the clipping path when the object is ended.
 						clipEO = true;
 						break;
 					case PdfOperator.Operator_Y:

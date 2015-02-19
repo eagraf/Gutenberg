@@ -27,9 +27,6 @@ public class Filter {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-
-			System.out.println(startPos);
-			System.out.println(length);
 		}
 		
 		public char nextChar() {

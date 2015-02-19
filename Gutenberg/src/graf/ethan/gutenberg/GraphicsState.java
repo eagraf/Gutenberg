@@ -20,7 +20,7 @@ public class GraphicsState {
 	
 	//The Current Transformation Matrix (CTM)
 	//Maps positions from user-space to device-space
-	private float scale = 0.75f;
+	private float scale = 1.0f;
 	public Matrix ctm;
 	public double ctmGraph[][];
 	

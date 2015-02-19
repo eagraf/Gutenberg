@@ -48,9 +48,11 @@ public class PdfScanner {
 	private static final String REFERENCE = "R";
 	
 	public FileScanner scanner;
+	public GutenbergScanner gScanner;
 	
-	public PdfScanner(FileScanner scanner) {
-		this.scanner = scanner;
+	public PdfScanner(GutenbergScanner scanner) {
+		this.gScanner = scanner;
+		this.scanner = gScanner.fileScanner;
 	}
 	
 	/*
@@ -400,7 +402,7 @@ public class PdfScanner {
 	/*
 	 * Scans in a dictionary.
 	 */
-	public HashMap<String, Object> scanDictionary() {
+	public PdfDictionary scanDictionary() {
 		HashMap<String, Object> res = new HashMap<>();
 		skipWhiteSpace();
 		char next = scanner.nextChar();
@@ -418,7 +420,7 @@ public class PdfScanner {
 			next = scanner.nextChar();
 		}
 		scanner.nextChar();
-		return res;
+		return new PdfDictionary(res, gScanner);
 	}
 	
 	/*

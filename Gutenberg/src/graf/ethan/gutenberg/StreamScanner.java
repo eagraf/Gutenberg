@@ -5,6 +5,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 
+/*
+ * Similar to PdfScanner, but does not have random access to file. Reads in data through a filter.
+ */
 public class StreamScanner {
 	//White-space and delimiter characters in PDF
 	private static final String WHITESPACE = " \0\t\n\f\r";
@@ -57,27 +60,54 @@ public class StreamScanner {
 		this.scanner = scanner;
 	}
 	
+	/*
+	 * Scans in PDF objects until an operator is reached, at which point a PDF Operation will be returned.
+	 */
 	public PdfOperation nextOperation() {
 		ArrayList<Object> args = new ArrayList<>();
-		try {
-			while(filter.fis.getChannel().position() - filter.startPos < filter.length) {
-				Object next = scanNext();
-				if(next == null) {
-					return null;
-				}
-				else if(next.getClass() == PdfOperator.class) {
-					return new PdfOperation((PdfOperator) next, args);
-				}
-				args.add(next);
+		while(!finished()) {
+			Object next = scanNext();
+			if(next == null) {
+				return null;
 			}
-			return null;
-		} catch (IOException e) {
-			e.printStackTrace();
-			return null;
+			else if(next.getClass() == PdfOperator.class) {
+				return new PdfOperation((PdfOperator) next, args);
+			}
+			args.add(next);
 		}
+		return null;
 	}
 	
-	@SuppressWarnings("unchecked")
+	public boolean finished() {
+		if(filter.getClass() == Filter.class) {
+			try {
+				if(filter.fis.getChannel().position() - filter.startPos < filter.length) {
+					return true;
+				}
+				else {
+					return false;
+				}
+			} catch (IOException e) {
+				return false;
+			}
+		}
+		if(filter.getClass() == FilterFlate.class) {
+			if(((FilterFlate) filter).inf.finished()) {
+				return true;
+			}
+			else {
+				return false;
+			}
+		}
+		if(filter.getClass() == FilterDCT.class) {
+			return ((FilterDCT) filter).finished;
+		}
+		return false;
+	}
+	
+	/*
+	 * Set the current stream.
+	 */
 	public void setStream(PdfObjectReference reference) {
 		scanner.fileScanner.setPosition(scanner.crossScanner.getObjectPosition(reference));
 		
@@ -87,19 +117,19 @@ public class StreamScanner {
 		scanner.pdfScanner.skipWhiteSpace();
 		scanner.pdfScanner.scanNumeric();
 		scanner.pdfScanner.skipWhiteSpace();
-		HashMap<String, Object> streamDictionary;
+		PdfDictionary streamDictionary;
 		
 		if(scanner.pdfScanner.scanKeyword() == 2) {
-			streamDictionary = (HashMap<String, Object>) scanner.pdfScanner.scanNext();
+			streamDictionary = (PdfDictionary) scanner.pdfScanner.scanNext();
+			System.out.println("Stream Dictionary: " + streamDictionary);
 			length = ((Number) streamDictionary.get("Length")).longValue();
-			if(streamDictionary.get("Filter") != null) {
+			if(streamDictionary.has("Filter")) {
 				filterName = (String) streamDictionary.get("Filter");
 			}
 		}
 		else {
 			streamDictionary = null;
 		}
-		System.out.println("Stream Dictionary: " + streamDictionary);
 		
 		//Begin the scanning process
 		scanner.pdfScanner.scanKeyword();
@@ -111,6 +141,9 @@ public class StreamScanner {
 				break;
 			case "FlateDecode":
 				filter = new FilterFlate(startPos, length, scanner.fileScanner.file);
+				break;
+			case "DCTDecode":
+				filter = new FilterDCT(startPos, length, scanner.fileScanner.file);
 				break;
 		}
 	}
@@ -455,7 +488,7 @@ public class StreamScanner {
 	/*
 	 * Scans in a dictionary.
 	 */
-	public HashMap<String, Object> scanDictionary() {
+	public PdfDictionary scanDictionary() {
 		HashMap<String, Object> res = new HashMap<>();
 		skipWhiteSpace();
 		char next = nextChar();
@@ -473,7 +506,7 @@ public class StreamScanner {
 			next = nextChar();
 		}
 		nextChar();
-		return res;
+		return new PdfDictionary(res, scanner);
 	}
 	
 	/* 
