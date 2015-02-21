@@ -550,7 +550,6 @@ public class GutenbergDrawer {
 						//l: Append a line to the current path.
 						Point2D l1 = Transform.user_device(((Number) args.get(0)).doubleValue(),
 								((Number) args.get(1)).doubleValue(), page.state);
-						System.out.println(next.operator.name);
 						path.lineTo(l1.getX(), l1.getY()); 
 						break;
 					case PdfOperator.Operator_M: 

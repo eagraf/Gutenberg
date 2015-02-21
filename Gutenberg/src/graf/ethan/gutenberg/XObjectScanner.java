@@ -1,6 +1,8 @@
 package graf.ethan.gutenberg;
 
+
 import java.awt.Color;
+
 
 public class XObjectScanner {
 	GutenbergScanner scanner;

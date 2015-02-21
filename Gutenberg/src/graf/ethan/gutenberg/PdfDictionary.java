@@ -5,7 +5,7 @@ import java.util.HashMap;
 public class PdfDictionary {
 	
 	private HashMap<String, Object> dict;
-	private CrossReferenceScanner crossScanner;
+	private XrefScanner crossScanner;
 	
 	public PdfDictionary(HashMap<String, Object> dict, GutenbergScanner scanner) {
 		this.dict = dict;

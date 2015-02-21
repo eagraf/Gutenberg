@@ -5,14 +5,14 @@ import java.util.ArrayList;
 /*
  * CrossReferenceScanner retrieves objects from the cross reference table.
  */
-public class CrossReferenceScanner {
+public class XrefScanner {
 	private PdfScanner pdfScanner;
-	private ArrayList<CrossReferenceSection> xrefs;
+	private ArrayList<XrefSection> xrefs;
 	
 	private static final int ENTRYSIZE = 20;
 	
 	
-	public CrossReferenceScanner(PdfScanner p, ArrayList<CrossReferenceSection> xrefs) {
+	public XrefScanner(PdfScanner p, ArrayList<XrefSection> xrefs) {
 		this.pdfScanner = p;
 		this.xrefs = xrefs;
 	}

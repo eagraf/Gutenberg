@@ -79,7 +79,7 @@ public class Page {
 			rect = (ArrayList<Integer>) object.get("MediaBox");
 		}
 		else {
-			rect = getMediaBox((PdfDictionary) scanner.crossScanner.getObject((PdfObjectReference) object.get("Parent")));
+			rect = getMediaBox((PdfDictionary) object.get("Parent"));
 		}
 		return rect;
 	}

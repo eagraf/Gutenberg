@@ -1,11 +1,14 @@
 package graf.ethan.gutenberg;
 
+
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.File;
 import java.io.IOException;
 
+
 import javax.imageio.ImageIO;
+
 
 public class FilterDCT extends Filter {
 	
@@ -19,6 +22,7 @@ public class FilterDCT extends Filter {
 	private int off = 0;
 	
 	public boolean finished = false;
+
 
 	public FilterDCT(long startPos, long length, File f) {
 		super(startPos, length, f);

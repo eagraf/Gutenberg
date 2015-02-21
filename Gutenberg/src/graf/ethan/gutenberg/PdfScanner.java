@@ -94,23 +94,30 @@ public class PdfScanner {
 			}	
 		}
 		if(NUMERAL.indexOf(next) >= 0) {
-			long position = scanner.getPosition() - 1;
+			long pos1 = scanner.getPosition() - 1;
 			scanner.shiftPosition(-1);
 			//See if the object being scanned is a number or a reference(2 0 R)
 			skipWhiteSpace();
 			try {
 				int num1 = scanner.nextInt();
 				int num2 = scanner.nextInt();
+				long pos2 = scanner.getPosition();
 				if(scanner.nextChar() == 'R') {
 					return new PdfObjectReference(num1, num2);
 				}
 				else {
-					scanner.setPosition(position);
+					scanner.setPosition(pos2);
+				}
+				if(scanNext() == "OBJ") {
+					return scanNext();
+				}
+				else {
+					scanner.setPosition(pos1);
 					return scanNumeric();
 				}
 			}
 			catch(NumberFormatException e) {
-				scanner.setPosition(position);
+				scanner.setPosition(pos1);
 				return scanNumeric();
 			}			
 		}
@@ -125,6 +132,7 @@ public class PdfScanner {
 					return true;
 				case 2:
 					//scanObject
+					return "OBJ";
 				case 4:
 					//scanStream
 				case 6:
