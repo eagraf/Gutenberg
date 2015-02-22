@@ -1,8 +1,8 @@
 package graf.ethan.gutenberg.frame;
 
-import graf.ethan.gutenberg.core.GutenbergCore;
 import graf.ethan.gutenberg.core.GutenbergDrawer;
 import graf.ethan.gutenberg.pdf.Page;
+import graf.ethan.gutenberg.resources.Dummy;
 
 import java.awt.Color;
 import java.awt.Container;
@@ -29,7 +29,7 @@ public class BasicFrame extends JFrame {
 		cont.setBackground(new Color(0xBDBDBD));
 		
 		this.setSize(1080, 720);
-    	this.setIconImage(new ImageIcon(GutenbergCore.class.getResource("resources\\gutenberg.png")).getImage());
+    	this.setIconImage(new ImageIcon(Dummy.class.getResource("gutenberg.png")).getImage());
 		this.setResizable(true);
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         this.setVisible(true);

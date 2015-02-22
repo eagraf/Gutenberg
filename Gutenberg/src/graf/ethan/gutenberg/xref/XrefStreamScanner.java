@@ -11,8 +11,6 @@ import java.util.ArrayList;
 
 public class XrefStreamScanner {
 	
-	private static final int ENTRYSIZE = 20;
-	
 	private GutenbergScanner scanner;
 	
 	public long startPos;
@@ -27,6 +25,7 @@ public class XrefStreamScanner {
 	private int field1;
 	private int field2;
 	private int field3;
+	private int entrySize;
 	
 	public XrefStreamScanner(GutenbergScanner scanner) {
 		this.scanner = scanner;
@@ -68,7 +67,8 @@ public class XrefStreamScanner {
 				ArrayList<Integer> w = (ArrayList<Integer>) streamDictionary.get("W");
 				this.field1 = w.get(0);
 				this.field2 = w.get(1);
-				this.field3 = w.get(2);
+				this.field3 = w.get(2); 
+				this.entrySize = field1 + field2 + field3;
 			}
 			
 			PdfDictionary params = null;
@@ -94,5 +94,24 @@ public class XrefStreamScanner {
 		else {
 			streamDictionary = null;
 		}
+	}
+	
+	public Object getObject(PdfObjectReference reference) {
+		filter.reset();
+		
+		int index = reference.objectNumber;
+		int skip = 0;
+		//Xrefs are split into multiple segments for each incremental update to the PDF file.
+		//This loop finds the correct segment.
+		for(int i = 0; i < xrefs.size(); i ++) {
+			if(index < xrefs.get(i).startNum + xrefs.get(i).length) {
+				
+			}
+			else {
+				skip += xrefs.get(i).length;
+			}
+		}
+		//If this reference doesn't exist.
+		return "NO REFERENCE";
 	}
 }

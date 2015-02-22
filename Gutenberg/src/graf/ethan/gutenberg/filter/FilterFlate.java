@@ -14,6 +14,8 @@ public class FilterFlate extends Filter {
 	public InflaterInputStream iis;
 	public Inflater inf;
 	
+	private PdfDictionary params;
+	
 	private int predictor = 1;
 	private int colors = 1;
 	private int bpc = 8;
@@ -31,8 +33,10 @@ public class FilterFlate extends Filter {
 	 * Can take parameters for better compression.
 	 *  * THIS NEEDS TO BE FIXED *
 	 */
-	public FilterFlate(long startPos, long length, PdfDictionary params, File f) {
+	public FilterFlate(long startPos, long length, PdfDictionary parms, File f) {
 		super(startPos, length, f);
+		
+		this.params = parms;
 		
 		//Set up the inflater and the inflater input stream. From java.util.zip.
 		this.inf = new Inflater();
@@ -238,5 +242,23 @@ public class FilterFlate extends Filter {
 			return true;
 		}
 		return false;
+	}
+	
+	@Override
+	public void reset() {
+		try {
+			fis.getChannel().position(startPos);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		//Set up the inflater and the inflater input stream. From java.util.zip.
+		this.inf = new Inflater();
+		this.iis = new InflaterInputStream(fis, inf);
+		
+		if(params != null) {
+			currLine = nextLine();
+			prevLine = null;
+		}
 	}
 }

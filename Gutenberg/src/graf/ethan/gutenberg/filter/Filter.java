@@ -55,4 +55,13 @@ public class Filter {
 				e.printStackTrace();
 			}
 		}
+		
+		public void reset() {
+			off = 0;
+			try {
+				fis.getChannel().position(startPos);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 }

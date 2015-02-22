@@ -53,4 +53,21 @@ public class FilterDCT extends Filter {
 		curr = (char) db.getElem(bankIndex, off);
 		off ++;
 	}
+	
+	@Override
+	public void reset() {
+		try {
+			fis.getChannel().position(startPos);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		try {
+			this.img = ImageIO.read(fis);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		this.db = (DataBufferByte) img.getData().getDataBuffer();
+		this.banks = db.getNumBanks();
+		this.size = db.getSize();
+	}
 }
