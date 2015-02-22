@@ -88,30 +88,7 @@ public class StreamScanner {
 	}
 	
 	public boolean finished() {
-		if(filter.getClass() == Filter.class) {
-			try {
-				if(filter.fis.getChannel().position() - filter.startPos < filter.length) {
-					return true;
-				}
-				else {
-					return false;
-				}
-			} catch (IOException e) {
-				return false;
-			}
-		}
-		if(filter.getClass() == FilterFlate.class) {
-			if(((FilterFlate) filter).inf.finished()) {
-				return true;
-			}
-			else {
-				return false;
-			}
-		}
-		if(filter.getClass() == FilterDCT.class) {
-			return ((FilterDCT) filter).finished;
-		}
-		return false;
+		return filter.finished();
 	}
 	
 	/*
@@ -164,7 +141,7 @@ public class StreamScanner {
 	
 	public char nextChar() {
 		byteCount ++;
-		return filter.nextChar();
+		return (char) filter.read();
 	}
 	
 	public void back() {

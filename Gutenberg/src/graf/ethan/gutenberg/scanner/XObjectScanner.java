@@ -124,7 +124,7 @@ public class XObjectScanner {
 	public int nextComponent(PdfImage image) {
 		if(componentCycle == image.bitsPerComponent) {
 			componentCycle = 0;
-			currentByte = filter.nextChar();
+			currentByte = filter.read();
 		}
 		int next;
 		switch(image.bitsPerComponent) {
@@ -141,7 +141,7 @@ public class XObjectScanner {
 				next = currentByte;
 				break;
 			case 16:
-				byte nextByte = (byte) filter.nextChar();
+				byte nextByte = (byte) filter.read();
 				next = (256 * (int) (currentByte & 0xFF)) + (int) (nextByte & 0xFF);
 				break;
 			default:
