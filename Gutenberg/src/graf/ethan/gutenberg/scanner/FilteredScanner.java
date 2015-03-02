@@ -1,20 +1,19 @@
 package graf.ethan.gutenberg.scanner;
 
-import graf.ethan.gutenberg.core.GutenbergScanner;
-import graf.ethan.gutenberg.pdf.PdfDictionary;
-import graf.ethan.gutenberg.pdf.PdfObject;
-import graf.ethan.gutenberg.pdf.PdfObjectReference;
-import graf.ethan.gutenberg.pdf.PdfOperator;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 
-/*
- * PdfScanner reads in PDF objects, keywords and operators.
- */
+import graf.ethan.gutenberg.core.GutenbergScanner;
+import graf.ethan.gutenberg.filter.Filter;
+import graf.ethan.gutenberg.filter.FilterDCT;
+import graf.ethan.gutenberg.filter.FilterFlate;
+import graf.ethan.gutenberg.pdf.PdfDictionary;
+import graf.ethan.gutenberg.pdf.PdfObjectReference;
+import graf.ethan.gutenberg.pdf.PdfOperator;
 
-public class PdfScanner {
+public class FilteredScanner {
+	
 	//White-space and delimiter characters in PDF
 	private static final String WHITESPACE = " \0\t\n\f\r";
 	private static final String DELIMITER = "()<>[]{}/%";
@@ -53,12 +52,75 @@ public class PdfScanner {
 	private static final String TRAILER = "trailer";
 	private static final String REFERENCE = "R";
 	
-	public FileScanner scanner;
-	public GutenbergScanner gScanner;
+	public GutenbergScanner scanner;
 	
-	public PdfScanner(GutenbergScanner scanner) {
-		this.gScanner = scanner;
-		this.scanner = gScanner.fileScanner;
+	public Filter filter;
+	
+	public long length;
+	public long startPos;
+	long byteCount = 0;
+	
+	public FilteredScanner(GutenbergScanner scanner) {
+		this.scanner = scanner;
+	}
+	
+	public void setStream(PdfObjectReference reference) {
+		scanner.fileScanner.setPosition(scanner.crossScanner.getObjectPosition(reference));
+		
+		//Scan in the stream dictionary
+		scanner.pdfScanner.skipWhiteSpace();
+		scanner.pdfScanner.scanNumeric();
+		scanner.pdfScanner.skipWhiteSpace();
+		scanner.pdfScanner.scanNumeric();
+		scanner.pdfScanner.skipWhiteSpace();
+		PdfDictionary streamDictionary;
+		
+		if(scanner.pdfScanner.scanKeyword() == 2) {
+			streamDictionary = (PdfDictionary) scanner.pdfScanner.scanNext();
+			System.out.println("Stream Dictionary: " + streamDictionary);
+			length = ((Number) streamDictionary.get("Length")).longValue();
+		}
+		else {
+			streamDictionary = null;
+		}
+		
+		
+		
+		PdfDictionary params = null;
+		if(streamDictionary.has("DecodeParms")) {
+			params = (PdfDictionary) streamDictionary.get("DecodeParms");
+		}
+		
+		//Begin the scanning process
+		scanner.pdfScanner.scanKeyword();
+		scanner.pdfScanner.skipWhiteSpace();
+		startPos = scanner.fileScanner.getPosition();
+		
+		if(streamDictionary.has("Filter")) {
+			String filterName = (String) streamDictionary.get("Filter");
+			switch(filterName) {
+				case "Default":
+					filter = new Filter(startPos, length, scanner.fileScanner.file);
+					break;
+				case "FlateDecode":
+					filter = new FilterFlate(startPos, length, params, scanner.fileScanner.file);
+					break;
+				case "DCTDecode":
+					filter = new FilterDCT(startPos, length, scanner.fileScanner.file);
+					break;
+			}
+		}
+		
+	}
+	
+	public char nextChar() {
+		byteCount ++;
+		return (char) filter.read();
+	}
+	
+	public void back() {
+		filter.back();
+		byteCount --;
 	}
 	
 	/*
@@ -66,7 +128,7 @@ public class PdfScanner {
 	 */
 	public Object scanNext() {
 		skipWhiteSpace();
-		char next = scanner.nextChar();
+		char next = nextChar();
 		//Checks to see if next is an opening delimiter. If so, the appropriate method is called.
 		if(DELIMITEROPEN.indexOf(next) >= 0) {
 			switch(next) {
@@ -76,13 +138,13 @@ public class PdfScanner {
 					return resString;
 				//Hex-string <12AE3BC2930>
 				case '<':
-					next = scanner.nextChar();
+					next = nextChar();
 					//If there is a second '<', then the next object is a dictionary.
 					if(next == '<') {
 						return scanDictionary();
 					}
 					else {
-						scanner.shiftPosition(-1);
+						back();
 						return scanHexString();
 					}
 				//Comment %Comment
@@ -100,37 +162,12 @@ public class PdfScanner {
 			}	
 		}
 		if(NUMERAL.indexOf(next) >= 0) {
-			long pos1 = scanner.getPosition() - 1;
-			scanner.shiftPosition(-1);
-			//See if the object being scanned is a number or a reference(2 0 R)
+			back();
 			skipWhiteSpace();
-			try {
-				int num1 = scanner.nextInt();
-				int num2 = scanner.nextInt();
-				long pos2 = scanner.getPosition();
-				if(scanner.nextChar() == 'R') {
-					return new PdfObjectReference(num1, num2);
-				}
-				else {
-					scanner.setPosition(pos2);
-				}
-				if(scanKeyword() == 2) {
-					Object obj = scanNext();
-					scanKeyword();
-					return obj;
-				}
-				else {
-					scanner.setPosition(pos1);
-					return scanNumeric();
-				}
-			}
-			catch(NumberFormatException e) {
-				scanner.setPosition(pos1);
-				return scanNumeric();
-			}			
+			return scanNumeric();
 		}
 		else {
-			scanner.shiftPosition(-1);
+			back();
 			int keyWord = scanKeyword();
 			//Returns for keywords need to be added. Most of these won't be used.
 			switch(keyWord) {
@@ -139,17 +176,15 @@ public class PdfScanner {
 				case 1:
 					return true;
 				case 2:
-					return "OBJ";
-				case 3:
-					return "ENDOBJ";
+					//scanObject
 				case 4:
-					return "STREAM";
+					//scanStream
 				case 5:
-					return "ENDSTREAM";
+					return null;
 				case 6:
-					return "XREF";
+					//scanXref
 				case 7:
-					return "TRAILER";
+					//scanTrailer
 				case 8:
 					return null;
 				default:
@@ -166,13 +201,16 @@ public class PdfScanner {
 	 */
 	public int scanKeyword() {
 		skipWhiteSpace();
-		char next = scanner.nextChar();
+		char next = nextChar();
+		//System.out.println(next);
 		StringBuilder keyword = new StringBuilder();
 		while(!isWhiteSpace(next) && !(DELIMITER.indexOf(next) >= 0)) {
+			//System.out.println(next);
 			keyword.append(next);
-			next = scanner.nextChar();
+			next = nextChar();
 		}
-		scanner.shiftPosition(-1);
+		//System.out.println(keyword.toString());
+		back();
 		switch(keyword.toString()) {
 			case FALSE:
 				return 0;
@@ -209,15 +247,15 @@ public class PdfScanner {
  	public Number scanNumeric() {
  		boolean isFloat = false;
  		StringBuilder res = new StringBuilder();
- 		char next = scanner.nextChar();
+ 		char next = nextChar();
  		while(NUMERAL.indexOf(next) >= 0) {
  			if(next == '.') {
  				isFloat = true;
  			}
  			res.append(next);
- 			next = scanner.nextChar();
+ 			next = nextChar();
  		}
- 		scanner.shiftPosition(-1);
+ 		back();
  		if(isFloat) {
  			return (float) Float.parseFloat(res.toString());
  		}
@@ -237,12 +275,12 @@ public class PdfScanner {
  	 */
  	public Number scanLong() {
  		StringBuilder res = new StringBuilder();
- 		char next = scanner.nextChar();
+ 		char next = nextChar();
  		while(NUMERAL.indexOf(next) >= 0) {
  			res.append(next);
- 			next = scanner.nextChar();
+ 			next = nextChar();
  		}
- 		scanner.shiftPosition(-1);
+ 		back();
  		return Long.parseLong(res.toString());
  	}
 	
@@ -251,7 +289,7 @@ public class PdfScanner {
 	 */
 	public String scanString() {
 		StringBuilder res = new StringBuilder();
-		char next = scanner.nextChar();
+		char next = nextChar();
 		int parenthesis = 0;
 		while(next != ')' || parenthesis > 0) {
 			//If parentheses are balanced, they are valid. THIS NEEDS TO BE FIXED.
@@ -263,14 +301,14 @@ public class PdfScanner {
 			}
 			//Reading in escape sequences
 			if(next == '\\') {
-				next = scanner.nextChar();
+				next = nextChar();
 				//Octal character codes
 				if(next >= '0' && next <= '7') {
 					StringBuilder octalEscape = new StringBuilder(Character.toString(next));
-					next = scanner.nextChar();
+					next = nextChar();
 					if(next >= '0' && next <= '7') {
 						octalEscape.append(next);
-						next = scanner.nextChar();
+						next = nextChar();
 						if(next >= '0' && next <= '7') {
 							octalEscape.append(next);
 						}
@@ -306,7 +344,7 @@ public class PdfScanner {
 							res.append('\\');
 							break;
 						case '\r':
-							next = scanner.nextChar();
+							next = nextChar();
 							if(next == '\n') {
 								break;
 							}
@@ -318,7 +356,7 @@ public class PdfScanner {
 			else {
 				res.append(next);
 			}
-			next = scanner.nextChar();
+			next = nextChar();
 		}
 		
 		return res.toString();
@@ -331,28 +369,22 @@ public class PdfScanner {
 	public String scanHexString() {
 		StringBuilder res = new StringBuilder();
 		StringBuilder hex = new StringBuilder();
-		char next = scanner.nextChar();
+		char next = nextChar();
 		while(next != '>') {		
 			if(HEX.indexOf((char)next) >= 0) {
-				if(hex.length() >= 2) {
-					res.append((char) Integer.parseInt(hex.toString(), 16));
-					hex = new StringBuilder();
-					if(HEX.indexOf((char)next) >= 0) {
-						hex.append(next);
-					}
-				}
-				else {
-					hex.append(next);
-				}
+				hex.append(next);
 			}
-			next = scanner.nextChar();
+			next = nextChar();
 		}
 		
-		if(hex.length() == 1) {
-			hex.append('0');
-		}
-		res.append((char) Integer.parseInt(hex.toString(), 16));
-		return res.toString();
+		 for( int i=0; i<hex.length()-1; i+=2 ){
+		      String s = hex.substring(i, (i + 2));
+		      byte n = (byte) Integer.parseInt(s, 16);
+		      res.append((char) n);
+		      //System.out.println((char) n);
+		  }
+		  
+		 return res.toString();
 	}
 	
 	/*
@@ -360,14 +392,14 @@ public class PdfScanner {
 	 */
 	public String scanName() {
 		StringBuilder res = new StringBuilder();
-		char next = scanner.nextChar();
+		char next = nextChar();
 		while(true) {
 			if(next == '#') {
 				StringBuilder hex = new StringBuilder();
-				next = scanner.nextChar();
+				next = nextChar();
 				if(HEX.indexOf(next) >= 0) {
 					hex.append(next);
-					next = scanner.nextChar();
+					next = nextChar();
 					if(HEX.indexOf(next) >= 0) {
 						hex.append(next);
 					}
@@ -379,14 +411,14 @@ public class PdfScanner {
 				}
 			}
 			else if((DELIMITER.indexOf(next) >= 0) || isWhiteSpace(next)) {
-				scanner.shiftPosition(-1);
+				back();
 				//System.out.println(res.toString());
 				return res.toString();
 			}
 			else {
 				res.append(next);
 			}
-			next = scanner.nextChar();
+			next = nextChar();
 		}
 	}
 	
@@ -394,11 +426,11 @@ public class PdfScanner {
 	 * Read everything from the comment until the newline.
 	 */
 	public void scanComment() {
-		char next = scanner.nextChar();
+		char next = nextChar();
  		while(next != '\n' && next != '\r') {
-			next = scanner.nextChar();
+			next = nextChar();
 		}
- 		scanner.shiftPosition(-1);
+ 		back();
 	}
 	
 	/*
@@ -407,12 +439,12 @@ public class PdfScanner {
 	public ArrayList<Object> scanArray() { 
 		ArrayList<Object> res = new ArrayList<>();
 		skipWhiteSpace();
-		char next = scanner.nextChar();
+		char next = nextChar();
 		while(next != ']') {
-			scanner.shiftPosition(-1);
+			back();
 			res.add(scanNext());
 			skipWhiteSpace();
-			next = scanner.nextChar();
+			next = nextChar();
 		}
 		
 		return res;
@@ -424,7 +456,7 @@ public class PdfScanner {
 	public PdfDictionary scanDictionary() {
 		HashMap<String, Object> res = new HashMap<>();
 		skipWhiteSpace();
-		char next = scanner.nextChar();
+		char next = nextChar();
 		while(next != '>') {
 			String key;
 			if(next == '/') {
@@ -436,56 +468,26 @@ public class PdfScanner {
 			Object value = scanNext();
 			skipWhiteSpace();
 			res.put(key, value);
-			next = scanner.nextChar();
+			next = nextChar();
 		}
-		scanner.nextChar();
-		return new PdfDictionary(res, gScanner);
-	}
-	
-	/*
-	 * Scans in an indirect object.
-	 */
-	public PdfObject scanObject() {
-		PdfObject res;
-		Object object;
-		int objectNumber;
-		int generationNumber;
-		
-		skipWhiteSpace();
-		objectNumber = scanNumeric().intValue();
-		skipWhiteSpace();
-		generationNumber = scanNumeric().intValue();
-		skipWhiteSpace();
-		if(scanKeyword() == 2) {
-			object = scanNext();
-		}
-		else {
-			object = null;
-		}
-		skipWhiteSpace();
-		if(scanKeyword() == 3) {
-			res = new PdfObject(objectNumber, generationNumber, object);
-		}
-		else {
-			res = null;
-		}
-		return res;
+		nextChar();
+		return new PdfDictionary(res, scanner);
 	}
 	
 	/* 
 	 * Skip white-space characters until the next object
 	 */
 	public void skipWhiteSpace() {
-		char next = scanner.nextChar();
+		char next = nextChar();
 		//Skip comments too
 		while(isWhiteSpace(next) || next == '%') {
 			if(next == '%') {
 				scanComment();
-				next = scanner.nextChar();
+				next = nextChar();
 			}
-			next = scanner.nextChar();
+			next = nextChar();
 		}
-		scanner.shiftPosition(-1);
+		back();
 	}
 	
 	/*

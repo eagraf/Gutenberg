@@ -1,5 +1,6 @@
 package graf.ethan.gutenberg.xref;
 
+import graf.ethan.gutenberg.core.GutenbergScanner;
 import graf.ethan.gutenberg.pdf.PdfObjectReference;
 import graf.ethan.gutenberg.scanner.PdfScanner;
 
@@ -8,15 +9,13 @@ import java.util.ArrayList;
 /*
  * CrossReferenceScanner retrieves objects from the cross reference table.
  */
-public class XrefScanner {
+public class XrefScanner extends Xref{
 	private PdfScanner pdfScanner;
-	private ArrayList<XrefSection> xrefs;
 	
 	private static final int ENTRYSIZE = 20;
 	
-	
-	public XrefScanner(PdfScanner p, ArrayList<XrefSection> xrefs) {
-		this.pdfScanner = p;
+	public XrefScanner(GutenbergScanner g, ArrayList<XrefSection> xrefs) {
+		this.pdfScanner = g.pdfScanner;
 		this.xrefs = xrefs;
 	}
 	
@@ -48,7 +47,7 @@ public class XrefScanner {
 		return "NO REFERENCE";
 	}
 	
-	public Long getObjectPosition(PdfObjectReference reference) {
+	public long getObjectPosition(PdfObjectReference reference) {
 		int index = reference.objectNumber;
 		//Xrefs are split into multiple segments for each incremental update to the PDF file.
 		//This loop finds the correct segment.
@@ -68,6 +67,6 @@ public class XrefScanner {
 			}
 		}
 		//If this reference doesn't exist.
-		return null;
+		return 0;
 	}
 }

@@ -4,6 +4,7 @@ import graf.ethan.gutenberg.misc.Glyph;
 import graf.ethan.gutenberg.misc.Transform;
 import graf.ethan.gutenberg.pdf.Page;
 import graf.ethan.gutenberg.pdf.PdfImage;
+import graf.ethan.gutenberg.pdf.PdfObjectReference;
 import graf.ethan.gutenberg.pdf.PdfOperation;
 import graf.ethan.gutenberg.pdf.PdfOperator;
 import graf.ethan.gutenberg.pdf.PdfXObject;
@@ -78,9 +79,11 @@ public class GutenbergDrawer {
 		g.fillRect(page.x, page.y, page.dWidth, page.dHeight);
 		g.setClip(page.state.clippingPath);
 		
-		scanner.streamScanner.setStream(page.contents);
-		
-		operate(page);
+		for(int i = 0; i < page.contents.size(); i ++) {
+			System.out.println("NEW STREAM");
+			scanner.streamScanner.setStream((PdfObjectReference) page.contents.get(i));
+			operate(page);
+		}
 	}
 	
 	public void drawPath(Page page, GeneralPath path) {

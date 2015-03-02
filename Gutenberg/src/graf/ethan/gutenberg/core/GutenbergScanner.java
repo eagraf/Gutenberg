@@ -8,6 +8,7 @@ import graf.ethan.gutenberg.scanner.FileScanner;
 import graf.ethan.gutenberg.scanner.PdfScanner;
 import graf.ethan.gutenberg.scanner.StreamScanner;
 import graf.ethan.gutenberg.scanner.XObjectScanner;
+import graf.ethan.gutenberg.xref.Xref;
 import graf.ethan.gutenberg.xref.XrefScanner;
 import graf.ethan.gutenberg.xref.XrefSection;
 
@@ -27,9 +28,10 @@ public class GutenbergScanner {
 	//Scanners
 	public FileScanner fileScanner;
 	public PdfScanner pdfScanner;
-	public XrefScanner crossScanner;
+	public Xref crossScanner;
 	public StreamScanner streamScanner;
 	public XObjectScanner xObjectScanner;
+	public LinearScanner linearScanner;
 	
 	//Drawers
 	public GutenbergDrawer gutenbergDrawer;
@@ -48,8 +50,8 @@ public class GutenbergScanner {
 		this.xObjectScanner = new XObjectScanner(this);
 		this.streamScanner = new StreamScanner(this);
 		
-		boolean scanTrailer = scanFirst();
-		if(!scanTrailer) {
+		Object first = scanFirst();
+		if(!document.linearized) {
 			firstPass();
 			if(document.getCatalog() == null) {
 				scanCatalog();
@@ -57,6 +59,7 @@ public class GutenbergScanner {
 		}
 		else {
 			System.out.println("Linearized");
+			this.linearScanner = new LinearScanner(this, (PdfDictionary) first);
 		}
 	}
 	
@@ -68,7 +71,7 @@ public class GutenbergScanner {
 	 *Scan the first object of the file to determine whether it is linearized.
 	 *Return true if the trailer does not have to be read. 
 	 */
-	public boolean scanFirst() {
+	public Object scanFirst() {
 		Object nextObj = pdfScanner.scanNext();
 		System.out.println(nextObj);
 		if(nextObj.getClass() == PdfDictionary.class) {
@@ -77,15 +80,12 @@ public class GutenbergScanner {
 				document.setPageTree((PdfDictionary) document.getCatalog().get("Pages"));
 				System.out.println("Catalog: " + document.getCatalog());
 				System.out.println("Page Tree: " + document.getPageTree());
-				return false;
 			}
 			else if(((PdfDictionary) nextObj).has("Linearized")) {
-				System.out.println("hi");
 				document.linearized = true;
-				return true;
 			}
 		}
-		return false;
+		return nextObj;
 	}
 	
 	/*
@@ -110,7 +110,7 @@ public class GutenbergScanner {
 					pdfScanner.skipWhiteSpace();
 					int length = (int) pdfScanner.scanNumeric().intValue();
 					xrefs.add(new XrefSection(startNum, length, fileScanner.getPosition()));
-					crossScanner = new XrefScanner(pdfScanner, xrefs);
+					crossScanner = new XrefScanner(this, xrefs);
 					break;
 				case STARTXREF:
 					//Find the startxref marker at the end of the file.
@@ -131,11 +131,23 @@ public class GutenbergScanner {
 		System.out.println("Page Tree: " + document.getPageTree());
 	}
 	
+	public Object getObject(PdfObjectReference reference) {
+		if(document.linearized) {
+			return linearScanner.getObject(reference);
+		}
+		else {
+			return crossScanner.getObject(reference);
+		}
+	}
+	
 	/*
 	 * Gets a page object to be rendered.
 	 */
 	@SuppressWarnings("unchecked")
 	public Page getPage(int num) {
+		if(document.linearized) {
+			return linearScanner.getPage(num);
+		}
 		if(num < ((ArrayList<Object>) document.getPageTree().get("Kids")).size()) {
 			PdfDictionary pageObject = (PdfDictionary) crossScanner.getObject((PdfObjectReference) ((ArrayList<Object>)document.getPageTree().get("Kids")).get(num));
 			System.out.println("Page Object: " + pageObject);

@@ -42,7 +42,6 @@ public class BasicFrame extends JFrame {
 	@Override
 	public void paint(Graphics g) {
 		super.paint(g);
-		System.out.println("LOOP");
 		drawer.drawPage(g, current);
 	}
 	

@@ -39,7 +39,7 @@ public class Page {
 	public PdfDictionary xObjectReferences;
 	public HashMap<String, PdfXObject> xObjects;
 	
-	public PdfObjectReference contents;	
+	public ArrayList<PdfObjectReference> contents;	
 	
 	public GraphicsState state;
 	
@@ -47,6 +47,7 @@ public class Page {
 	
 	public HashMap<String, PdfFont> fonts;
 	
+	@SuppressWarnings("unchecked")
 	public Page(GutenbergScanner scanner, PdfDictionary pageObject, int x, int y) {
 		this.scanner = scanner;
 		this.x = x;
@@ -68,8 +69,17 @@ public class Page {
 		dHeight = (int) (p1.getY() - p2.getY());
 		state.setClip(x, y, dWidth, dHeight);
 		
-		contents = (PdfObjectReference) pageObject.getReference("Contents");
-		
+		this.contents = new ArrayList<PdfObjectReference>();
+		Object temp = pageObject.getDict().get("Contents");
+		if(temp.getClass() == PdfObjectReference.class) {
+			this.contents.add((PdfObjectReference) temp);
+		}
+		else if(temp.getClass() == ArrayList.class) {
+			this.contents = (ArrayList<PdfObjectReference>) temp;
+		}
+		System.out.println(contents.getClass());
+		System.out.println("Page: " + object);
+		System.out.println("Page Contents: " + contents);
 		getResources();
 	}
 	
@@ -117,6 +127,7 @@ public class Page {
 		Iterator<Entry<String, Object>> it = xObjectReferences.getDict().entrySet().iterator();
 	    while (it.hasNext()) {
 	    	Entry<String, Object> pairs = it.next();
+	    	System.out.println(pairs.getValue());
 	    	xObjects.put((String) pairs.getKey(), scanner.xObjectScanner.scanObject((PdfObjectReference) pairs.getValue()));
 	    }
 	}
@@ -144,13 +155,15 @@ public class Page {
 	        else if(font.getClass() == PdfObjectReference.class) {
 	        	PdfFont newFont;
 		        File fontFile;
-	        	PdfDictionary fontDictionary = (PdfDictionary) scanner.crossScanner.getObject((PdfObjectReference) font);
+	        	PdfDictionary fontDictionary = (PdfDictionary) scanner.getObject((PdfObjectReference) font);
 	        	System.out.println("Font: " + fontDictionary);
 	        	switch((String)((PdfDictionary) fontDictionary).get("BaseFont")) {
 		        	case "Times-Roman":
 		        		fontFile = new File(GutenbergCore.class.getResource("resources/fonts/times.ttf").getFile());
 		        		newFont = new PdfFont("Times-Roman", Font.TRUETYPE_FONT, fontFile);
 		        		res.put((String) pairs.getKey(), newFont);
+		        		break;
+		        	
 	        	}
 	        }
 	        it.remove(); // avoids a ConcurrentModificationException

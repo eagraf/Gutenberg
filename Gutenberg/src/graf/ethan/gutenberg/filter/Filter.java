@@ -12,6 +12,7 @@ public class Filter extends InputStream{
 	
 	public long startPos;
 	public long length;
+	public File file;
 	
 	public FileInputStream fis;
 	
@@ -21,7 +22,7 @@ public class Filter extends InputStream{
 	public Filter(long startPos, long length, File f) {
 		this.startPos = startPos;
 		this.length = length;
-		
+		this.file = f;
 		
 		try {
 			this.fis = new FileInputStream(f);

@@ -58,7 +58,6 @@ public class FilterDCT extends Filter {
 				}
 			}
 			curr = (char) db.getElem(bankIndex, offset);
-			System.out.println(curr);
 			offset ++;
 			return curr;
 		}

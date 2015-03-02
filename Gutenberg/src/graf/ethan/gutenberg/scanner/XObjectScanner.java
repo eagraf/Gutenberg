@@ -117,7 +117,6 @@ public class XObjectScanner {
 				break;
 		}
 		
-		System.out.println(image);
 		return image;
 	}
 	

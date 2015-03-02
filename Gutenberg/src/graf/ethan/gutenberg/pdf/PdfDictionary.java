@@ -1,7 +1,7 @@
 package graf.ethan.gutenberg.pdf;
 
 import graf.ethan.gutenberg.core.GutenbergScanner;
-import graf.ethan.gutenberg.xref.XrefScanner;
+import graf.ethan.gutenberg.xref.Xref;
 
 import java.util.HashMap;
 
@@ -11,7 +11,7 @@ import java.util.HashMap;
 public class PdfDictionary {
 	
 	private HashMap<String, Object> dict;
-	private XrefScanner crossScanner;
+	private Xref crossScanner;
 	
 	public PdfDictionary(HashMap<String, Object> dict, GutenbergScanner scanner) {
 		this.dict = dict;

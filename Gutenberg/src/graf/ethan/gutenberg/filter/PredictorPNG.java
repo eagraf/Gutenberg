@@ -1,5 +1,10 @@
 package graf.ethan.gutenberg.filter;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.zip.Inflater;
+import java.util.zip.InflaterInputStream;
+
 public class PredictorPNG extends Predictor {
 	
 	private FilterFlate filter;
@@ -12,8 +17,12 @@ public class PredictorPNG extends Predictor {
 	private int offset = 0;
 	private int byteWidth;
 	private int bpp;
+	
 	private int[] currLine;
 	private int[] prevLine;
+	private int nextInt;
+	
+	private boolean skipLine = false;
 	
 	public PredictorPNG(FilterFlate filter, int colors, int bpc, int columns) {
 		this.filter = filter;
@@ -26,6 +35,8 @@ public class PredictorPNG extends Predictor {
 		byteWidth = (int) Math.ceil(bpp * this.columns);
 		
 		currLine = nextLine();
+		nextInt = currLine[0];
+		linePos++;
 	}
 	
 	/*
@@ -36,40 +47,40 @@ public class PredictorPNG extends Predictor {
 	public int nextComponent() {
 		//If the end of a line has been reached, set the current line to the next one.
 		if(linePos == byteWidth) {
-			prevLine = currLine;
 			linePos = 0;
+			offset = 8;
+			prevLine = currLine;
 			currLine = nextLine();
 		}
 		//If all components have been read from a byte, get the next one.
-		int next = 0;
-		if(offset == 8) {
+		if(offset >= 8) {		
 			offset = 0;
-			next = currLine[linePos];
+			nextInt = currLine[linePos];
 			linePos ++;
 		}
 		if(offset == 16) {
 			offset = 0;
-			next = currLine[linePos];
+			nextInt = currLine[linePos];
 			linePos += 2;
 		}
 		//Get the value of the component based off of the bits per component and the current offset.
 		int res = 0;
 		switch(bpc) {
 			case 1:
-				res = (next >> (7 - offset)) & 1;
+				res = (nextInt >> (7 - offset)) & 1;
 				break;
 			case 2:
-				res = (next >> (6 - offset)) & 3;
+				res = (nextInt >> (6 - offset)) & 3;
 				break;
 			case 4:
-				res = (next >> (4 - offset)) & 15;
+				res = (nextInt >> (4 - offset)) & 15;
 				break;
 			case 8:
-				res = next;
+				res = nextInt;
 				break;
 			case 16:
-				int nextByte = filter.read();
-				res = (256 * (int) (next & 0xFF)) + (int) (nextByte & 0xFF);
+				int nextByte = filter.next();
+				res = (256 * (int) (nextInt & 0xFF)) + (int) (nextByte & 0xFF);
 				break;
 		}
 		offset += bpc;
@@ -81,8 +92,7 @@ public class PredictorPNG extends Predictor {
 	 */
 	public int[] nextLine() {
 		int[] line = null;
-		int algorithm = filter.read();
-		System.out.println("Algorithm: " + algorithm);
+		int algorithm = filter.next();
 		switch(algorithm) {
 			case 0:
 				//Use no predictor.
@@ -104,6 +114,10 @@ public class PredictorPNG extends Predictor {
 				//Paeth algorithm not implemented yet.
 				break;
 		}
+		linePos = 0;
+		nextInt = line[linePos];
+		linePos ++;
+		
 		return line;
 	}
 	
@@ -113,7 +127,7 @@ public class PredictorPNG extends Predictor {
 	public int[] getNoneLine() {
 		int[] line = new int[byteWidth];
 		for(int i = 0; i < byteWidth; i ++) {
-			line[i] = filter.read();
+			line[i] = filter.next();
 		}
 		return line;
 	}
@@ -125,10 +139,10 @@ public class PredictorPNG extends Predictor {
 		int[] line = new int[byteWidth];
 		for(int i = 0; i < byteWidth; i ++) {
 			if(i - bpp >= 0) {
-				line[i] = (filter.read() + line[i - bpp]) % 256;
+				line[i] = (filter.next() + line[i - bpp]) % 256;
 			}
 			else {
-				line[i] = filter.read() % 256;
+				line[i] = filter.next() % 256;
 			}
 		}
 		return line;
@@ -141,12 +155,14 @@ public class PredictorPNG extends Predictor {
 		int[] line = new int[byteWidth];
 		if(prevLine != null) {
 			for(int i = 0; i < byteWidth; i ++){
-				line[i] = (filter.read() + prevLine[i]) % 256;
+				int next = filter.next();
+				line[i] = (next + prevLine[i]) % 256;
 			}
 		}
 		else {
-			for(int i = 0; i < byteWidth; i ++){		
-				line[i] = filter.read() % 256;
+			for(int i = 0; i < byteWidth; i ++){
+				int next = filter.next();
+				line[i] = next % 256;
 			}
 		}
 		return line;
@@ -166,7 +182,7 @@ public class PredictorPNG extends Predictor {
 			if(prevLine != null) {
 				prior = prevLine[i];
 			}
-			line[i] = (filter.read() +((int) Math.floor((raw + prior)/2.0)) % 256);
+			line[i] = (filter.next() +((int) Math.floor((raw + prior)/2.0)) % 256);
 		}
 		return line;
 	}
@@ -181,15 +197,20 @@ public class PredictorPNG extends Predictor {
 
 	@Override
 	public long skip(long n) {
+		if(skipLine) {
+			//Skip a dummy line. This fixes the problem but I have no clue why.
+			nextLine();
+		}
 		long count = 0;
 		int lines = (int) Math.floor(n / byteWidth);
 		for(int i = 0; i < lines; i ++) {
-			nextLine();
-			
+			prevLine = currLine;
+			currLine = nextLine();
 		}
 		int spaces = (int) (n % byteWidth);
 		if(linePos + spaces >= byteWidth) {
-			nextLine();
+			prevLine = currLine;
+			currLine = nextLine();
 			count += byteWidth;
 			spaces -= byteWidth - linePos;
 		}
@@ -201,14 +222,34 @@ public class PredictorPNG extends Predictor {
 	
 	@Override
 	public void reset() {
-		filter.reset();
-		currLine = nextLine();
+		try {
+			filter.fis = new FileInputStream(filter.file);
+			filter.fis.skip(filter.startPos);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		//Set up the inflater and the inflater input stream. From java.util.zip.
+		filter.inf = new Inflater();
+		filter.iis = new InflaterInputStream(filter.fis, filter.inf);
+		
+		linePos = 0;
+		offset = 0;
+		
 		prevLine = null;
+		currLine = nextLine();
+		nextInt = currLine[0];
+		linePos ++;
+		
+		skipLine = true;
 	}
 	
 	
 	/*
 	 * public int[] getPaethLine() 
 	 */
-
+	@Override
+	public String toString() {
+		return "PNGPredictor";
+	}
 }

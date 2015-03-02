@@ -4,6 +4,7 @@ package graf.ethan.gutenberg.filter;
 import graf.ethan.gutenberg.pdf.PdfDictionary;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
@@ -72,12 +73,21 @@ public class FilterFlate extends Filter {
 		return curr;	
 	}
 	
+	public int next() {
+		try {
+			curr = (char) iis.read();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return curr;
+	}
+	
 	public long skip(long n) {
 		if(PNGPredictor || TIFFPredictor) {
 			return predictor.skip(n);
 		}
 		try {
-			return fis.skip(n);
+			return iis.skip(n);
 		} catch (IOException e) {
 			return -1;
 		}
@@ -105,7 +115,8 @@ public class FilterFlate extends Filter {
 			predictor.reset();
 		}
 		try {
-			fis.getChannel().position(startPos);
+			fis = new FileInputStream(file);
+			fis.skip(startPos);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -147,7 +158,9 @@ public class FilterFlate extends Filter {
 				case 14:
 				case 15:
 					PNGPredictor = true;
+					
 					this.predictor = new PredictorPNG(this, colors, bpc, columns);
+					System.out.println(predictor.toString());
 					break;
 			}
 		}
