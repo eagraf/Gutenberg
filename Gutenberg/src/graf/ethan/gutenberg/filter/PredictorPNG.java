@@ -7,7 +7,7 @@ import java.util.zip.InflaterInputStream;
 
 public class PredictorPNG extends Predictor {
 	
-	private FilterFlate filter;
+	private PredictorFilter filter;
 	
 	private int colors;
 	private int bpc;
@@ -24,7 +24,7 @@ public class PredictorPNG extends Predictor {
 	
 	private boolean skipLine = false;
 	
-	public PredictorPNG(FilterFlate filter, int colors, int bpc, int columns) {
+	public PredictorPNG(PredictorFilter filter, int colors, int bpc, int columns) {
 		this.filter = filter;
 		
 		this.colors = colors;
@@ -53,7 +53,7 @@ public class PredictorPNG extends Predictor {
 			currLine = nextLine();
 		}
 		//If all components have been read from a byte, get the next one.
-		if(offset >= 8) {		
+		if(offset == 8) {		
 			offset = 0;
 			nextInt = currLine[linePos];
 			linePos ++;
@@ -182,17 +182,52 @@ public class PredictorPNG extends Predictor {
 			if(prevLine != null) {
 				prior = prevLine[i];
 			}
-			line[i] = (filter.next() +((int) Math.floor((raw + prior)/2.0)) % 256);
+			line[i] = (filter.next() + ((int) Math.floor((raw + prior)/2.0)) % 256);
 		}
 		return line;
+	}
+	
+	/*
+	 * Get the next line, predicting with the paeth algorithm.
+	 */
+	public int[] getPaethLine() {
+		int[] line = new int[byteWidth];
+		for(int i = 0; i < byteWidth; i ++) {
+			int a = 0, b = 0, c = 0;
+			if(i - bpp >= 0) {
+				a = line[i - bpp];
+			}
+			if(prevLine != null) {
+				b = prevLine[i];
+				if(i - bpp >= 0) {
+					c = prevLine[i - bpp];
+				}
+			}
+			line[i] = (filter.next() + paeth(a, b, c)) % 256;
+		}
+		return line;
+	}
+	
+	/*
+	 * Paeth function
+	 */
+	public int paeth(int a, int b, int c) {
+		int p = a + b - c;
+		int pa = Math.abs(p - a);
+		int pb = Math.abs(p - b);
+		int pc = Math.abs(p - c);
+		if(pa <= pb && pa <= pc) {
+			return a;
+		}
+		else if(pb <= pa && pb <= pc) {
+			return b;
+		}
+		return c;
 	}
 
 	@Override
 	public boolean finished() {
-		if(filter.inf.finished() && linePos == byteWidth) {
-			return true;
-		}
-		return false;
+		return filter.finished();
 	}
 
 	@Override

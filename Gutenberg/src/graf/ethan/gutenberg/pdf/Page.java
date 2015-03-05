@@ -99,11 +99,13 @@ public class Page {
 	}
 	
 	public void getResources() {
+		//Get the resources dictionary.
 		if(object.has("Resources")) {
 			resources = (PdfDictionary) object.get("Resources");
 			System.out.println("Page Resources: " + resources);
 		}
 		
+		//Get the fonts used by the page.
 		if(resources.has("Font")) {
 			if(resources.get("Font").getClass() == HashMap.class) {
 				fontDictionary = (PdfDictionary) resources.get("Font");
@@ -114,6 +116,7 @@ public class Page {
 			this.fonts = getFonts();
 		}
 		
+		//Get the external objects used by the page.
 		if(resources.has("XObject")) {
 			xObjectReferences = (PdfDictionary) resources.get("XObject");
 			getXObjects();
@@ -122,6 +125,9 @@ public class Page {
 		}
 	}
 	
+	/*
+	 * Scan the external objects into the xObjects dictionary.
+	 */
 	public void getXObjects() {
 		xObjects = new HashMap<String, PdfXObject>();
 		Iterator<Entry<String, Object>> it = xObjectReferences.getDict().entrySet().iterator();
@@ -172,11 +178,17 @@ public class Page {
 	    return res;
 	}
 	
+	/*
+	 * Push a graphics state onto the graphics state stack.
+	 */
 	public void pushStack() {
 		stateStack.push(state);
 		state = new GraphicsState(scanner.gutenbergDrawer, this);
 	}
 	
+	/*
+	 * Pop a graphics state from the graphics state stack.
+	 */
 	public void popStack() {
 		state = stateStack.pop();
 	}

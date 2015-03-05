@@ -7,10 +7,9 @@ import graf.ethan.gutenberg.pdf.PdfOperator;
 import java.util.ArrayList;
 
 /*
- * Similar to PdfScanner, but does not have random access to file. Reads in data through a filter.
+ * Scans normal content stream, by extending the filtered scanner.
  */
 public class StreamScanner extends FilteredScanner {
-	
 	
 	public GutenbergScanner scanner;
 	
@@ -32,16 +31,19 @@ public class StreamScanner extends FilteredScanner {
 			if(next == null) {
 				return null;
 			}
+			//If next is an operator, return the operator along with the arguments.
 			else if(next.getClass() == PdfOperator.class) {
 				PdfOperation res = new PdfOperation((PdfOperator) next, args);
 				args = new ArrayList<Object>();
 				return res;
 			}
+			//Add next to the argument stack.
 			args.add(next);
 		}
 		return null;
 	}
 	
+	//Test if the scanner is done with the stream.
 	public boolean finished() {
 		return filter.finished();
 	}

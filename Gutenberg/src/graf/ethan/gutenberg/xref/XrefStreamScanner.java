@@ -1,9 +1,9 @@
 package graf.ethan.gutenberg.xref;
 
 import graf.ethan.gutenberg.core.GutenbergScanner;
-import graf.ethan.gutenberg.filter.Filter;
-import graf.ethan.gutenberg.filter.FilterDCT;
-import graf.ethan.gutenberg.filter.FilterFlate;
+import graf.ethan.gutenberg.filter.Filterless;
+import graf.ethan.gutenberg.filter.DCTDecode;
+import graf.ethan.gutenberg.filter.FlateDecode;
 import graf.ethan.gutenberg.pdf.PdfDictionary;
 import graf.ethan.gutenberg.pdf.PdfObjectReference;
 import graf.ethan.gutenberg.scanner.ObjectStreamScanner;
@@ -20,7 +20,7 @@ public class XrefStreamScanner extends Xref{
 	
 	public PdfDictionary streamDictionary;
 	
-	public Filter filter;
+	public Filterless filter;
 	
 	//The length of each field in a cross-reference entry.
 	private int field1 = 1;
@@ -86,15 +86,15 @@ public class XrefStreamScanner extends Xref{
 				String filterName = (String) streamDictionary.get("Filter");
 				switch(filterName) {
 					case "FlateDecode":
-						filter = new FilterFlate(startPos, length, params, scanner.fileScanner.file);
+						filter = new FlateDecode(startPos, length, params, scanner.fileScanner.file);
 						break;
 					case "DCTDecode":
-						filter = new FilterDCT(startPos, length, scanner.fileScanner.file);
+						filter = new DCTDecode(startPos, length, scanner.fileScanner.file);
 						break;
 				}
 			}
 			else {
-				filter = new Filter(startPos, length, scanner.fileScanner.file);
+				filter = new Filterless(startPos, length, scanner.fileScanner.file);
 			}
 		}
 		else {

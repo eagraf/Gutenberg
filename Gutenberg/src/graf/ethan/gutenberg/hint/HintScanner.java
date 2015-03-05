@@ -3,9 +3,9 @@ package graf.ethan.gutenberg.hint;
 import java.util.ArrayList;
 
 import graf.ethan.gutenberg.core.GutenbergScanner;
-import graf.ethan.gutenberg.filter.Filter;
-import graf.ethan.gutenberg.filter.FilterDCT;
-import graf.ethan.gutenberg.filter.FilterFlate;
+import graf.ethan.gutenberg.filter.Filterless;
+import graf.ethan.gutenberg.filter.DCTDecode;
+import graf.ethan.gutenberg.filter.FlateDecode;
 import graf.ethan.gutenberg.pdf.PdfDictionary;
 
 public class HintScanner {
@@ -17,7 +17,7 @@ public class HintScanner {
 	
 	public PdfDictionary streamDictionary;
 	
-	public Filter filter;
+	public Filterless filter;
 	
 	public HintTable hintTable;
 	
@@ -139,15 +139,15 @@ public class HintScanner {
 				String filterName = (String) streamDictionary.get("Filter");
 				switch(filterName) {
 					case "FlateDecode":
-						filter = new FilterFlate(startPos, length, params, scanner.fileScanner.file);
+						filter = new FlateDecode(startPos, length, params, scanner.fileScanner.file);
 						break;
 					case "DCTDecode":
-						filter = new FilterDCT(startPos, length, scanner.fileScanner.file);
+						filter = new DCTDecode(startPos, length, scanner.fileScanner.file);
 						break;
 				}
 			}
 			else {
-				filter = new Filter(startPos, length, scanner.fileScanner.file);
+				filter = new Filterless(startPos, length, scanner.fileScanner.file);
 			}
 		}
 		else {

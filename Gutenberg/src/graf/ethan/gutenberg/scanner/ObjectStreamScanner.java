@@ -3,9 +3,9 @@ package graf.ethan.gutenberg.scanner;
 import java.io.IOException;
 
 import graf.ethan.gutenberg.core.GutenbergScanner;
-import graf.ethan.gutenberg.filter.Filter;
-import graf.ethan.gutenberg.filter.FilterDCT;
-import graf.ethan.gutenberg.filter.FilterFlate;
+import graf.ethan.gutenberg.filter.Filterless;
+import graf.ethan.gutenberg.filter.DCTDecode;
+import graf.ethan.gutenberg.filter.FlateDecode;
 import graf.ethan.gutenberg.pdf.PdfDictionary;
 
 public class ObjectStreamScanner extends FilteredScanner {
@@ -55,15 +55,15 @@ public class ObjectStreamScanner extends FilteredScanner {
 				String filterName = (String) streamDictionary.get("Filter");
 				switch(filterName) {
 					case "FlateDecode":
-						filter = new FilterFlate(startPos, length, params, scanner.fileScanner.file);
+						filter = new FlateDecode(startPos, length, params, scanner.fileScanner.file);
 						break;
 					case "DCTDecode":
-						filter = new FilterDCT(startPos, length, scanner.fileScanner.file);
+						filter = new DCTDecode(startPos, length, scanner.fileScanner.file);
 						break;
 				}
 			}
 			else {
-				filter = new Filter(startPos, length, scanner.fileScanner.file);
+				filter = new Filterless(startPos, length, scanner.fileScanner.file);
 			}
 			
 			if(streamDictionary.has("N")) {

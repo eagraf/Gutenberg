@@ -10,26 +10,14 @@ import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
 
 
-public class FilterFlate extends Filter {
-	
-	public InflaterInputStream iis;
-	public Inflater inf;
-	
-	private boolean PNGPredictor = false;
-	private boolean TIFFPredictor = false;
-	
-	private Predictor predictor;
-	
-	private PdfDictionary params;
-	
-	private int predictorNum = 1;
+public class FlateDecode extends PredictorFilter{
 	
 	/*
 	 * A filter based on the inflate/deflate algorithm for zlib compression.
 	 * Can take parameters for better compression.
 	 *  * THIS NEEDS TO BE FIXED *
 	 */
-	public FilterFlate(long startPos, long length, PdfDictionary parms, File f) {
+	public FlateDecode(long startPos, long length, PdfDictionary parms, File f) {
 		super(startPos, length, f);
 		
 		this.params = parms;
@@ -103,9 +91,6 @@ public class FilterFlate extends Filter {
 	}
 	
 	public boolean finished() {
-		if(PNGPredictor || TIFFPredictor) {
-			return predictor.finished();
-		}
 		return inf.finished();
 	}
 	

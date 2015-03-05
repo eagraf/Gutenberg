@@ -33,6 +33,7 @@ public class GraphicsState {
 	
 	public Shape clippingPath;
 	
+	//Color variables
 	public String colorSpaceStroking = "DeviceGray";
 	public String colorSpaceNonStroking = "DeviceGray";
 	public Color colorStroking = Color.BLACK;
@@ -68,6 +69,7 @@ public class GraphicsState {
 		this.page = page;
 		this.resolution = drawer.RESOLUTION;
 		
+		//Initialize the transformation matrices.
 		ctmGraph = new double[3][3];
 		ctmGraph[0][0] = (scale * resolution/72d);
 		ctmGraph[1][0] = 0;
@@ -98,6 +100,9 @@ public class GraphicsState {
 		cache = new GlyphCache();
 	}
 	
+	/*
+	 * Change the scale at which the page is displayed.
+	 */
 	public void setScale(float scale) {
 		ctmGraph = new double[3][3];
 		ctmGraph[0][0] = (scale * resolution/72d);
@@ -113,6 +118,9 @@ public class GraphicsState {
 		this.ctm = new Matrix(ctmGraph);
 	}
 	
+	/*
+	 * Change the text matrix.
+	 */
 	public void setTextStart(double a, double b, double c, double d, double e, double f) {
 		tmGraph = new double[3][3];
 		tmGraph[0][0] = a;
@@ -129,6 +137,9 @@ public class GraphicsState {
 		textLineMatrix = textMatrix;
 	}
 	
+	/*
+	 * Calculate and retrieve the text rendering matrix, the complete transformation from text space to device space.
+	 */
 	public Matrix getTextRenderingMatrix() {
 		double[][] trmGraph = new double[3][3];
 		trmGraph[0][0] = textScale;
@@ -144,10 +155,16 @@ public class GraphicsState {
 		return new Matrix(trmGraph);
 	}
 	
+	/*
+	 * Set the clipping path.
+	 */
 	public void setClip(int x, int y, int width, int height) {
 		this.clippingPath = new Rectangle(x, y, width, height);
 	}
 	
+	/*
+	 * Edit the clipping path by transforming it by the width of a glyph.
+	 */
 	public void incrementText(double width, double height) {
 		tmGraph[0][2] += width;
 		tmGraph[1][2] += height;

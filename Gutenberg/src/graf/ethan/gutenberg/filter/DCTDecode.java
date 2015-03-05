@@ -14,7 +14,7 @@ import java.io.IOException;
 import javax.imageio.ImageIO;
 
 
-public class FilterDCT extends Filter {
+public class DCTDecode extends Filterless {
 	
 	private BufferedImage img;
 	private DataBufferByte db;
@@ -28,7 +28,7 @@ public class FilterDCT extends Filter {
 	public boolean finished = false;
 
 
-	public FilterDCT(long startPos, long length, File f) {
+	public DCTDecode(long startPos, long length, File f) {
 		super(startPos, length, f);
 		
 		try {

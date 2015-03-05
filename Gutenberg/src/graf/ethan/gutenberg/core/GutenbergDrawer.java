@@ -44,6 +44,7 @@ public class GutenbergDrawer {
 	public GutenbergDrawer(GutenbergScanner scanner) {
 		this.scanner = scanner;
 		
+		//Get the resolution of the device.
 		RESOLUTION = Toolkit.getDefaultToolkit().getScreenResolution();
 		System.out.println("Resolution: " + RESOLUTION);
 		
@@ -75,10 +76,12 @@ public class GutenbergDrawer {
 				RenderingHints.KEY_FRACTIONALMETRICS, 
 				RenderingHints.VALUE_FRACTIONALMETRICS_OFF);
 		
+		//Draw the page
 		g.setColor(Color.WHITE);
 		g.fillRect(page.x, page.y, page.dWidth, page.dHeight);
 		g.setClip(page.state.clippingPath);
 		
+		//For every content stream in a page, execute it.
 		for(int i = 0; i < page.contents.size(); i ++) {
 			System.out.println("NEW STREAM");
 			scanner.streamScanner.setStream((PdfObjectReference) page.contents.get(i));
@@ -86,9 +89,13 @@ public class GutenbergDrawer {
 		}
 	}
 	
+	/*
+	 * Strokes a path object.
+	 */
 	public void drawPath(Page page, GeneralPath path) {
 		g.setColor(page.state.colorStroking);
 		
+		//Get the dashing pattern if present.
 		boolean dashed = false;
 		float[] dashArray = new float[page.state.dashArray.size()];
 		for(int i = 0; i < page.state.dashArray.size(); i ++) {
@@ -99,6 +106,7 @@ public class GutenbergDrawer {
 			}
 		}
 		
+		//Set the stroke of the path. Determines important variables about how it will be displayed.
 		if(page.state.dashArray.isEmpty() == true || !dashed){
 			g.setStroke(new BasicStroke(Transform.scale(page.state.lineWidth, page.state), 
 					Transform.scale(page.state.lineCap, page.state), 
@@ -113,22 +121,32 @@ public class GutenbergDrawer {
 					dashArray, Transform.scale(page.state.phase, page.state)));
 		}		
 		
+		//Antialias the path.
 		g.setRenderingHint(
 				RenderingHints.KEY_ANTIALIASING,
 				RenderingHints.VALUE_ANTIALIAS_ON);
 		
+		//Draw the path.
 		g.draw(path);
 	}
 	
+	/*
+	 * Fill a path object.
+	 */
 	public void fillPath(Page page, GeneralPath path) {
+		//Antialias the path.
 		g.setRenderingHint(
 				RenderingHints.KEY_ANTIALIASING,
 				RenderingHints.VALUE_ANTIALIAS_ON);
 		
+		//Set color and fill path.
 		g.setColor(page.state.colorNonStroking);
 		g.fill(path);
 	}
 	
+	/*
+	 * Display a piece of text.
+	 */
 	public void drawText(Page page, String text) {
 		//Determine the font
 		Font font;
@@ -140,6 +158,7 @@ public class GutenbergDrawer {
 			font = new Font("Times New Roman", Font.PLAIN, 11);
 		}
 		
+		//Set up the glyph caching system.
 		FontRenderContext frc = g.getFontRenderContext();
 		GlyphVector gv = font.createGlyphVector(frc, text);
 		int length = gv.getNumGlyphs();
@@ -149,7 +168,10 @@ public class GutenbergDrawer {
 		
 		GeneralPath clip = new GeneralPath();
 		
+		//Cycle through every character.
 		for(int i = 0; i < length; i ++) {
+			//If a character has already been used, retrieve the outline from the cache. If it has not been used,
+			//calculate its outline and put it in the cache.
 			Point2D p = gv.getGlyphPosition(i);
 			if(page.state.cache.has(font, text.charAt(i), page.state.textScale)) {
 				path = page.state.cache.get(font, text.charAt(i), page.state.textScale).path;
@@ -164,11 +186,13 @@ public class GutenbergDrawer {
 				page.state.cache.put(font, text.charAt(i), page.state.textScale, new Glyph(path, metrics));
 			}
 			
+			//Transform the text matrix to the new location.
 			Matrix temp = page.state.getTextRenderingMatrix().multiply(page.state.textMatrix);
 			Matrix loc = temp.multiply(page.state.ctm);
 			
 			AffineTransform t = new AffineTransform();
 			
+			//Transform the path.
 			t.setTransform(loc.getScaleX(),
 					loc.getRotateX(),
 					loc.getRotateY(),
@@ -176,6 +200,8 @@ public class GutenbergDrawer {
 					loc.getTranslateX(),
 					loc.getTranslateY());
 			path = new GeneralPath(t.createTransformedShape(path));
+			
+			//Set the render mode for the character. Determines filling, stroking and clipping.
 			switch(page.state.renderMode) {
 				case 0:
 					//Just fill the glyph.
@@ -239,6 +265,7 @@ public class GutenbergDrawer {
 		boolean clipEO = false;
 		GeneralPath path = new GeneralPath();
 		PdfOperation next = scanner.streamScanner.nextOperation();
+		//Loop through every operation.
 		while(next != null) {
 			System.out.println(next);
 			if(next != null) {
