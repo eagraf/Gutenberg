@@ -10,8 +10,8 @@ import graf.ethan.gutenberg.scanner.FileScanner;
 import graf.ethan.gutenberg.scanner.PdfScanner;
 import graf.ethan.gutenberg.scanner.StreamScanner;
 import graf.ethan.gutenberg.scanner.XObjectScanner;
-import graf.ethan.gutenberg.xref.Xref;
 import graf.ethan.gutenberg.xref.XrefLinear;
+import graf.ethan.gutenberg.xref.XrefSection;
 import graf.ethan.gutenberg.xref.XrefStreamScanner;
 
 public class LinearScanner {
@@ -52,9 +52,13 @@ public class LinearScanner {
 		Object next = pdfScanner.scanNext();
 		System.out.println(next);
 		if(next == "XREF") {
-			
-		}
-		
+			//Find all of the XREF sections
+			pdfScanner.skipWhiteSpace();
+			int startNum = pdfScanner.scanNumeric().intValue();
+			pdfScanner.skipWhiteSpace();
+			int length = (int) pdfScanner.scanNumeric().intValue();
+			this.crossScanner.xRef1.xrefs.add(new XrefSection(startNum, length, fileScanner.getPosition()));
+		}		
 		if(next.getClass() == PdfDictionary.class) {
 			if(((PdfDictionary) next).has("Type")) {
 				String type = (String) ((PdfDictionary) next).get("Type");
@@ -72,6 +76,9 @@ public class LinearScanner {
 					this.crossScanner.xRef2 = new XrefStreamScanner(scanner);
 					((XrefStreamScanner) this.crossScanner.xRef2).setStream(loc);
 				}
+			}
+			if(((PdfDictionary) next).has("Root")) {
+				scanner.document.setCatalog((PdfDictionary) ((PdfDictionary) next).get("Root"));
 			}
 		}
 		scanner.crossScanner = this.crossScanner;

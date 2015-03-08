@@ -53,6 +53,7 @@ public class GutenbergScanner {
 		Object first = scanFirst();
 		if(!document.linearized) {
 			firstPass();
+			//scanTrailer();
 			if(document.getCatalog() == null) {
 				scanCatalog();
 			}
@@ -137,6 +138,23 @@ public class GutenbergScanner {
 		}
 		else {
 			return crossScanner.getObject(reference);
+		}
+	}
+	
+	//This gets both the trailer and the cross reference stream.
+	public void scanTrailer() {
+		fileScanner.setPosition(document.file.length() - 1024);
+		System.out.println(pdfScanner.scanNext());
+		
+		String nextLine = fileScanner.nextLine();
+		while(nextLine != null) {
+			if(nextLine == TRAILER) {
+				//Find the trailer
+				trailerPos = fileScanner.getPosition();
+				pdfScanner.skipWhiteSpace();
+				document.setTrailer((PdfDictionary) pdfScanner.scanNext());
+				System.out.println("Trailer: " + document.getTrailer());
+			}
 		}
 	}
 	

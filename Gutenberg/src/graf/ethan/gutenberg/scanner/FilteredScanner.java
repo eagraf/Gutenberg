@@ -84,8 +84,6 @@ public class FilteredScanner {
 			streamDictionary = null;
 		}
 		
-		
-		
 		PdfDictionary params = null;
 		if(streamDictionary.has("DecodeParms")) {
 			params = (PdfDictionary) streamDictionary.get("DecodeParms");
@@ -99,9 +97,6 @@ public class FilteredScanner {
 		if(streamDictionary.has("Filter")) {
 			String filterName = (String) streamDictionary.get("Filter");
 			switch(filterName) {
-				case "Default":
-					filter = new Filterless(startPos, length, scanner.fileScanner.file);
-					break;
 				case "FlateDecode":
 					filter = new FlateDecode(startPos, length, params, scanner.fileScanner.file);
 					break;
@@ -109,6 +104,9 @@ public class FilteredScanner {
 					filter = new DCTDecode(startPos, length, scanner.fileScanner.file);
 					break;
 			}
+		}
+		else {
+			filter = new Filterless(startPos, length, scanner.fileScanner.file);
 		}
 		
 	}

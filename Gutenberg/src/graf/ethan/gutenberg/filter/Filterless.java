@@ -35,6 +35,7 @@ public class Filterless extends Filter {
 		off--;
 	}
 	
+	@Override
 	public int read() {
 		if(off == -1) {
 			off = 0;
@@ -51,6 +52,7 @@ public class Filterless extends Filter {
 		return curr;	
 	}
 	
+	@Override
 	public long skip(long n) {
 		try {
 			return fis.skip(n);
@@ -59,6 +61,7 @@ public class Filterless extends Filter {
 		}
 	}
 	
+	@Override
 	public void reset() {
 		off = 0;
 		try {
@@ -68,6 +71,7 @@ public class Filterless extends Filter {
 		}
 	}
 	
+	@Override
 	public void close() {
 		try {
 			fis.close();
@@ -76,6 +80,7 @@ public class Filterless extends Filter {
 		}
 	}
 	
+	@Override
 	public boolean finished() {
 		try {
 			if(fis.getChannel().position() > startPos + length) {

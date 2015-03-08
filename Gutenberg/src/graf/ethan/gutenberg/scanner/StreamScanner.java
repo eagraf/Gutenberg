@@ -45,6 +45,7 @@ public class StreamScanner extends FilteredScanner {
 	
 	//Test if the scanner is done with the stream.
 	public boolean finished() {
+		System.out.println(filter);
 		return filter.finished();
 	}
 }
