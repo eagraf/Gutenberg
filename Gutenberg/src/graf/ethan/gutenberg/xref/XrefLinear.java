@@ -9,8 +9,8 @@ public class XrefLinear extends Xref{
 	
 	@Override
 	public Object getObject(PdfObjectReference reference) {
-		for(int i = 0; i < xRef2.xrefs.size(); i ++) {
-			if(reference.objectNumber > xRef2.xrefs.get(i).startNum && reference.objectNumber < xRef2.xrefs.get(i).startNum + xRef2.xrefs.get(i).length) {
+		for(int i = 0; i < xRef2.xrefSections.size(); i ++) {
+			if(reference.objectNumber > xRef2.xrefSections.get(i).startNum && reference.objectNumber < xRef2.xrefSections.get(i).startNum + xRef2.xrefSections.get(i).length) {
 				return xRef2.getObject(reference);
 			}
 		}
@@ -19,8 +19,8 @@ public class XrefLinear extends Xref{
 		
 	@Override
 	public long getObjectPosition(PdfObjectReference reference) {
-		for(int i = 0; i < xRef2.xrefs.size(); i ++) {
-			if(reference.objectNumber > xRef2.xrefs.get(i).startNum && reference.objectNumber < xRef2.xrefs.get(i).startNum + xRef2.xrefs.get(i).length) {
+		for(int i = 0; i < xRef2.xrefSections.size(); i ++) {
+			if(reference.objectNumber > xRef2.xrefSections.get(i).startNum && reference.objectNumber < xRef2.xrefSections.get(i).startNum + xRef2.xrefSections.get(i).length) {
 				return xRef2.getObjectPosition(reference);
 			}
 		}

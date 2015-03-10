@@ -149,8 +149,10 @@ public class PdfScanner {
 				case 6:
 					return "XREF";
 				case 7:
-					return "TRAILER";
+					return "STARTXREF";
 				case 8:
+					return "TRAILER";
+				case 9:
 					return null;
 				default:
 					if(keyWord >= 32 && keyWord < 105) {

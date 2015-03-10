@@ -16,7 +16,7 @@ public class XrefScanner extends Xref{
 	
 	public XrefScanner(GutenbergScanner g, ArrayList<XrefSection> xrefs) {
 		this.pdfScanner = g.pdfScanner;
-		this.xrefs = xrefs;
+		this.xrefSections = xrefs;
 	}
 	
 	/*
@@ -27,14 +27,14 @@ public class XrefScanner extends Xref{
 		int index = reference.objectNumber;
 		//Xrefs are split into multiple segments for each incremental update to the PDF file.
 		//This loop finds the correct segment.
-		for(int i = 0; i < xrefs.size(); i ++) {
-			if(index < xrefs.get(i).startNum + xrefs.get(i).length) {
+		for(int i = 0; i < xrefSections.size(); i ++) {
+			if(index < xrefSections.get(i).startNum + xrefSections.get(i).length) {
 				//Sets scanner position to beginning of segment.
-				pdfScanner.scanner.setPosition(xrefs.get(i).startPos);
+				pdfScanner.scanner.setPosition(xrefSections.get(i).startPos);
 
 				//Xref entries are always 20 characters long. Sets position to the correct entry based on this.
 				pdfScanner.skipWhiteSpace();
-				pdfScanner.scanner.setPosition(pdfScanner.scanner.getPosition() + (ENTRYSIZE * (index - xrefs.get(i).startNum)));
+				pdfScanner.scanner.setPosition(pdfScanner.scanner.getPosition() + (ENTRYSIZE * (index - xrefSections.get(i).startNum)));
 				
 				//Gets the position of the entry's object in the file.
 				long pos = (long) pdfScanner.scanLong();
@@ -51,14 +51,14 @@ public class XrefScanner extends Xref{
 		int index = reference.objectNumber;
 		//Xrefs are split into multiple segments for each incremental update to the PDF file.
 		//This loop finds the correct segment.
-		for(int i = 0; i < xrefs.size(); i ++) {
-			if(index < xrefs.get(i).startNum + xrefs.get(i).length) {
+		for(int i = 0; i < xrefSections.size(); i ++) {
+			if(index < xrefSections.get(i).startNum + xrefSections.get(i).length) {
 				//Sets scanner position to beginning of segment.
-				pdfScanner.scanner.setPosition(xrefs.get(i).startPos);
+				pdfScanner.scanner.setPosition(xrefSections.get(i).startPos);
 
 				//Xref entries are always 20 characters long. Sets position to the correct entry based on this.
 				pdfScanner.skipWhiteSpace();
-				pdfScanner.scanner.setPosition(pdfScanner.scanner.getPosition() + (ENTRYSIZE * (index - xrefs.get(i).startNum)));
+				pdfScanner.scanner.setPosition(pdfScanner.scanner.getPosition() + (ENTRYSIZE * (index - xrefSections.get(i).startNum)));
 				
 				//Gets the position of the entry's object in the file.
 				long pos = (long) pdfScanner.scanLong();

@@ -6,6 +6,7 @@ import graf.ethan.gutenberg.pdf.PdfDocument;
 import graf.ethan.gutenberg.pdf.PdfObjectReference;
 import graf.ethan.gutenberg.scanner.FileScanner;
 import graf.ethan.gutenberg.scanner.PdfScanner;
+import graf.ethan.gutenberg.scanner.InitialScanner;
 import graf.ethan.gutenberg.scanner.StreamScanner;
 import graf.ethan.gutenberg.scanner.XObjectScanner;
 import graf.ethan.gutenberg.xref.Xref;
@@ -32,6 +33,7 @@ public class GutenbergScanner {
 	public StreamScanner streamScanner;
 	public XObjectScanner xObjectScanner;
 	public LinearScanner linearScanner;
+	public InitialScanner reverseScanner;
 	
 	//Drawers
 	public GutenbergDrawer gutenbergDrawer;
@@ -50,13 +52,18 @@ public class GutenbergScanner {
 		this.xObjectScanner = new XObjectScanner(this);
 		this.streamScanner = new StreamScanner(this);
 		
+		
+		
 		Object first = scanFirst();
+		
 		if(!document.linearized) {
-			firstPass();
-			//scanTrailer();
-			if(document.getCatalog() == null) {
-				scanCatalog();
-			}
+			this.reverseScanner = new InitialScanner(this);
+			reverseScanner.scanTrailers(reverseScanner.getTrailerPos());
+			PdfDictionary trailer = reverseScanner.getTrailer();
+			this.crossScanner = reverseScanner.getXref();
+			trailer.setCrossScanner(this.crossScanner);
+			document.setTrailer(trailer);
+			scanCatalog();
 		}
 		else {
 			System.out.println("Linearized");
@@ -76,13 +83,7 @@ public class GutenbergScanner {
 		Object nextObj = pdfScanner.scanNext();
 		System.out.println(nextObj);
 		if(nextObj.getClass() == PdfDictionary.class) {
-			if(((PdfDictionary) nextObj).get("Type") == "Catalog") {
-				document.setCatalog((PdfDictionary) nextObj);
-				document.setPageTree((PdfDictionary) document.getCatalog().get("Pages"));
-				System.out.println("Catalog: " + document.getCatalog());
-				System.out.println("Page Tree: " + document.getPageTree());
-			}
-			else if(((PdfDictionary) nextObj).has("Linearized")) {
+			if(((PdfDictionary) nextObj).has("Linearized")) {
 				document.linearized = true;
 			}
 		}

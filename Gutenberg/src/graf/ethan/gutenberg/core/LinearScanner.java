@@ -7,10 +7,13 @@ import graf.ethan.gutenberg.pdf.Page;
 import graf.ethan.gutenberg.pdf.PdfDictionary;
 import graf.ethan.gutenberg.pdf.PdfObjectReference;
 import graf.ethan.gutenberg.scanner.FileScanner;
+import graf.ethan.gutenberg.scanner.InitialScanner;
 import graf.ethan.gutenberg.scanner.PdfScanner;
 import graf.ethan.gutenberg.scanner.StreamScanner;
 import graf.ethan.gutenberg.scanner.XObjectScanner;
 import graf.ethan.gutenberg.xref.XrefLinear;
+import graf.ethan.gutenberg.xref.XrefList;
+import graf.ethan.gutenberg.xref.XrefScanner;
 import graf.ethan.gutenberg.xref.XrefSection;
 import graf.ethan.gutenberg.xref.XrefStreamScanner;
 
@@ -24,7 +27,7 @@ public class LinearScanner {
 	public XObjectScanner xObjectScanner;
 	public HintScanner hintScanner;
 	
-	public XrefLinear crossScanner;
+	public XrefList crossScanner;
 	
 	public PdfDictionary params;
 	
@@ -36,7 +39,7 @@ public class LinearScanner {
 		this.streamScanner = scanner.streamScanner;
 		this.xObjectScanner = scanner.xObjectScanner;
 		this.hintScanner = new HintScanner(scanner); 
-		this.crossScanner = new XrefLinear();
+		this.crossScanner = new XrefList();
 		
 		this.params = lpDict;
 		
@@ -49,39 +52,9 @@ public class LinearScanner {
 	}
 	
 	public void getXref(long xrefPos) {
-		Object next = pdfScanner.scanNext();
-		System.out.println(next);
-		if(next == "XREF") {
-			//Find all of the XREF sections
-			pdfScanner.skipWhiteSpace();
-			int startNum = pdfScanner.scanNumeric().intValue();
-			pdfScanner.skipWhiteSpace();
-			int length = (int) pdfScanner.scanNumeric().intValue();
-			this.crossScanner.xRef1.xrefs.add(new XrefSection(startNum, length, fileScanner.getPosition()));
-		}		
-		if(next.getClass() == PdfDictionary.class) {
-			if(((PdfDictionary) next).has("Type")) {
-				String type = (String) ((PdfDictionary) next).get("Type");
-				System.out.println(type);
-				if(type.equals("XRef")) {
-					this.crossScanner.xRef1 = new XrefStreamScanner(scanner);
-					((XrefStreamScanner) this.crossScanner.xRef1).setStream(xrefPos);
-				}
-			}
-			if(((PdfDictionary) next).has("Prev")) {
-				long loc = ((Number) ((PdfDictionary) next).get("Prev")).longValue();
-				scanner.fileScanner.setPosition(loc);
-				Object nextObj = pdfScanner.scanNext();
-				if(nextObj.getClass() == PdfDictionary.class) {
-					this.crossScanner.xRef2 = new XrefStreamScanner(scanner);
-					((XrefStreamScanner) this.crossScanner.xRef2).setStream(loc);
-				}
-			}
-			if(((PdfDictionary) next).has("Root")) {
-				scanner.document.setCatalog((PdfDictionary) ((PdfDictionary) next).get("Root"));
-			}
-		}
-		scanner.crossScanner = this.crossScanner;
+		InitialScanner initialScanner = new InitialScanner(scanner);
+		initialScanner.scanXrefSection(initialScanner.scanXrefSection(xrefPos));
+		scanner.crossScanner = this.crossScanner = initialScanner.getXref();
 	}
 
 	public Page getPage(int num) {

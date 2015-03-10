@@ -11,7 +11,7 @@ public class GutenbergCore {
  
     public static void main(String[] args) {
     	
-    	File f = new File("C:\\Users\\Ethan\\Desktop\\Gutenberg\\PDF Test\\minimal.pdf");
+    	File f = new File("C:\\Users\\Ethan\\Desktop\\Gutenberg\\PDF Test\\MW - Notes - Post-Soviet Russia.pdf");
     	
     	//Initialize the scanner and drawer
     	GutenbergScanner gScanner = new GutenbergScanner(f);

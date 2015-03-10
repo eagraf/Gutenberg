@@ -31,7 +31,7 @@ public class XrefStreamScanner extends Xref{
 	public XrefStreamScanner(GutenbergScanner scanner) {
 		this.scanner = scanner;
 		this.objectScanner = new ObjectStreamScanner(scanner);
-		xrefs = new ArrayList<>();
+		xrefSections = new ArrayList<>();
 	}
 	
 	public void setStream(long position) {
@@ -60,11 +60,11 @@ public class XrefStreamScanner extends Xref{
 				@SuppressWarnings("unchecked")
 				ArrayList<Integer> index = (ArrayList<Integer>) streamDictionary.get("Index");
 				for(int i = 0; i < index.size(); i += 2) {
-					xrefs.add(new XrefSection(index.get(i), index.get(i + 1)));
+					xrefSections.add(new XrefSection(index.get(i), index.get(i + 1)));
 				}
 			}
 			else {
-				xrefs.add(new XrefSection(0, ((Number) streamDictionary.get("Size")).intValue()));
+				xrefSections.add(new XrefSection(0, ((Number) streamDictionary.get("Size")).intValue()));
 			}
 			
 			//Get the array of integers that specifies the length of each field in  the stream.
@@ -108,9 +108,9 @@ public class XrefStreamScanner extends Xref{
 		int skip = 0;
 		//Xrefs are split into multiple segments for each incremental update to the PDF file.
 		//This loop finds the correct segment.
-		for(int i = 0; i < xrefs.size(); i ++) {
-			if(index < xrefs.get(i).startNum + xrefs.get(i).length) {	
-				filter.skip((skip * entrySize) + ((index - xrefs.get(i).startNum) * entrySize));
+		for(int i = 0; i < xrefSections.size(); i ++) {
+			if(index < xrefSections.get(i).startNum + xrefSections.get(i).length) {	
+				filter.skip((skip * entrySize) + ((index - xrefSections.get(i).startNum) * entrySize));
 				switch(filter.read()) {
 					case 0:
 						//Do nothing ... Empty entry.
@@ -153,7 +153,7 @@ public class XrefStreamScanner extends Xref{
 				}
 			}
 			else {
-				skip += xrefs.get(i).length;
+				skip += xrefSections.get(i).length;
 				
 			}
 		}
@@ -167,9 +167,9 @@ public class XrefStreamScanner extends Xref{
 		int skip = 0;
 		//Xrefs are split into multiple segments for each incremental update to the PDF file.
 		//This loop finds the correct segment.
-		for(int i = 0; i < xrefs.size(); i ++) {			
-			if(index < xrefs.get(i).startNum + xrefs.get(i).length) {	
-				filter.skip((skip * entrySize) + ((index - xrefs.get(i).startNum) * entrySize));
+		for(int i = 0; i < xrefSections.size(); i ++) {			
+			if(index < xrefSections.get(i).startNum + xrefSections.get(i).length) {	
+				filter.skip((skip * entrySize) + ((index - xrefSections.get(i).startNum) * entrySize));
 				switch(filter.read()) {
 					case 0:
 						//Do nothing ... Empty entry.
@@ -197,7 +197,7 @@ public class XrefStreamScanner extends Xref{
 				}
 			}
 			else {
-				skip += xrefs.get(i).length;
+				skip += xrefSections.get(i).length;
 				
 			}
 		}

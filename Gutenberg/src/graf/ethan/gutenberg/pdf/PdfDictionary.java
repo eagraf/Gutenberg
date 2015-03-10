@@ -30,6 +30,7 @@ public class PdfDictionary {
 		if(dict.containsKey(key)) {
 			Object value = dict.get(key);
 			if(value.getClass() == PdfObjectReference.class) {
+				System.out.println(crossScanner);
 				return crossScanner.getObject((PdfObjectReference) value);
 			}
 			else {
@@ -63,6 +64,10 @@ public class PdfDictionary {
 	
 	public HashMap<String, Object> getDict() {
 		return dict;
+	}
+	
+	public void setCrossScanner(Xref xref) {
+		this.crossScanner = xref;
 	}
 	
 	@Override

@@ -6,7 +6,7 @@ import graf.ethan.gutenberg.pdf.PdfObjectReference;
 
 public abstract class Xref {
 	
-	public ArrayList<XrefSection> xrefs;
+	public ArrayList<XrefSection> xrefSections;
 	
 	public abstract Object getObject(PdfObjectReference reference);
 	
