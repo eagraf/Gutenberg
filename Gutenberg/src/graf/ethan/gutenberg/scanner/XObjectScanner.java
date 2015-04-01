@@ -2,6 +2,7 @@ package graf.ethan.gutenberg.scanner;
 
 
 import graf.ethan.gutenberg.core.GutenbergScanner;
+import graf.ethan.gutenberg.filter.CCITTFaxDecode;
 import graf.ethan.gutenberg.filter.Filterless;
 import graf.ethan.gutenberg.filter.DCTDecode;
 import graf.ethan.gutenberg.filter.FlateDecode;
@@ -63,12 +64,16 @@ public class XObjectScanner {
 					case "DCTDecode":
 						filter = new DCTDecode(startPos, length, scanner.fileScanner.file);
 						break;
+					case "CCITTFaxDecode":
+						filter = new CCITTFaxDecode(startPos, length, params, scanner.fileScanner.file, ((Number) streamDictionary.get("Width")).intValue(), ((Number) streamDictionary.get("Height")).intValue());
+						break;
 				}
 				System.out.println("Stream Dictionary: " + streamDictionary);
 			}
 			else {
 				filter = new Filterless(startPos, length, scanner.fileScanner.file);
 			}
+			System.out.println(filter);
 			
 			if(streamDictionary.has("Subtype")) {
 				String subType = (String) streamDictionary.get("Subtype");
@@ -93,34 +98,52 @@ public class XObjectScanner {
 		
 		PdfImage image = new PdfImage(width, height, bpc, colorSpace);
 		
-		switch(colorSpace) {
-			case "DeviceRGB":
-				for(int y = 0; y < height; y ++) {
-					for(int x = 0; x < width; x ++) {
-						int[] components = new int[3];
-						for(int i = 0; i < 3; i ++) {
-							components[i] = nextComponent(image);
+		if(colorSpace != null) {
+			switch(colorSpace) {
+				case "DeviceRGB":
+					for(int y = 0; y < height; y ++) {
+						for(int x = 0; x < width; x ++) {
+							int[] components = new int[3];
+							for(int i = 0; i < 3; i ++) {
+								components[i] = nextComponent(image);
+							}
+							int rgb = new Color(components[2], components[1], components[0]).getRGB();
+							image.image.setRGB(x, y, rgb);
 						}
-						int rgb = new Color(components[2], components[1], components[0]).getRGB();
-						image.image.setRGB(x, y, rgb);
 					}
-				}
-				break;
-			case "DeviceGray":
-				for(int y = 0; y < height; y ++) {
-					for(int x = 0; x < width; x ++) {
-						int component = nextComponent(image);
-						int rgb = new Color(component, component, component).getRGB();
-						image.image.setRGB(x, y, rgb);
+					break;
+				case "DeviceGray":
+					for(int y = 0; y < height; y ++) {
+						for(int x = 0; x < width; x ++) {
+							int component = nextComponent(image);
+							int rgb = new Color(component, component, component).getRGB();
+							image.image.setRGB(x, y, rgb);
+						}
 					}
+					break;
+			}
+		}
+		else {
+			for(int y = 0; y < height; y ++) {
+				for(int x = 0; x < width; x ++) {
+					int component = nextComponent(image);
+					int rgb = new Color(component, component, component).getRGB();
+					image.image.setRGB(x, y, rgb);
 				}
-				break;
+			}
 		}
 		
 		return image;
 	}
 	
 	public int nextComponent(PdfImage image) {
+		if(filter.getClass() == CCITTFaxDecode.class) {
+			int res = filter.read();
+			if(res == 1) {
+				return 255;
+			}
+			return 0;
+		}
 		if(componentCycle == image.bitsPerComponent) {
 			componentCycle = 0;
 			currentByte = filter.read();

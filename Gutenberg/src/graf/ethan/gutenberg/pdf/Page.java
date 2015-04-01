@@ -3,6 +3,7 @@ package graf.ethan.gutenberg.pdf;
 import graf.ethan.gutenberg.core.GutenbergCore;
 import graf.ethan.gutenberg.core.GutenbergScanner;
 import graf.ethan.gutenberg.misc.Transform;
+import graf.ethan.gutenberg.resources.fonts.DumDum;
 
 import java.awt.Font;
 import java.awt.geom.Point2D;
@@ -159,18 +160,9 @@ public class Page {
 		        }
 	        }
 	        else if(font.getClass() == PdfObjectReference.class) {
-	        	PdfFont newFont;
-		        File fontFile;
-	        	PdfDictionary fontDictionary = (PdfDictionary) scanner.getObject((PdfObjectReference) font);
-	        	System.out.println("Font: " + fontDictionary);
-	        	switch((String)((PdfDictionary) fontDictionary).get("BaseFont")) {
-		        	case "Times-Roman":
-		        		fontFile = new File(GutenbergCore.class.getResource("resources/fonts/times.ttf").getFile());
-		        		newFont = new PdfFont("Times-Roman", Font.TRUETYPE_FONT, fontFile);
-		        		res.put((String) pairs.getKey(), newFont);
-		        		break;
-		        	
-	        	}
+	        	File fontFile = new File(DumDum.class.getResource("times.ttf").getFile());
+        		PdfFont newFont = new PdfFont("Times-Roman", Font.TRUETYPE_FONT, fontFile);
+        		res.put((String) pairs.getKey(), newFont);
 	        }
 	        it.remove(); // avoids a ConcurrentModificationException
 	    } 

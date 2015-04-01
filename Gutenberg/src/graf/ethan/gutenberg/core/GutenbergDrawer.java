@@ -457,7 +457,7 @@ public class GutenbergDrawer {
 												transform.get(1, 1),
 												transform.get(0, 2),
 												transform.get(1, 2)),
-												AffineTransformOp.TYPE_BICUBIC), 0, (int) -(transform.get(1, 1) * image.getHeight()));
+												AffineTransformOp.TYPE_BILINEAR), 0, (int) -(transform.get(1, 1) * image.getHeight()));
 								break;
 						}
 						break;

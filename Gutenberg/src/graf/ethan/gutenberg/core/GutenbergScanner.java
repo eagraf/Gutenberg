@@ -168,7 +168,7 @@ public class GutenbergScanner {
 			return linearScanner.getPage(num);
 		}
 		if(num < ((ArrayList<Object>) document.getPageTree().get("Kids")).size()) {
-			PdfDictionary pageObject = (PdfDictionary) crossScanner.getObject((PdfObjectReference) ((ArrayList<Object>)document.getPageTree().get("Kids")).get(num));
+			PdfDictionary pageObject = (PdfDictionary) document.getPages().get(num);
 			System.out.println("Page Object: " + pageObject);
 			//The coordinates are temporary.
 			return new Page(this, pageObject, 50, 50);

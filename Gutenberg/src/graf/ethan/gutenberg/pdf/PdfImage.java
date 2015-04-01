@@ -20,17 +20,22 @@ public class PdfImage {
 		this.colorSpace = colorSpace;
 		
 		image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-	
-		switch(colorSpace) {
-			case "DeviceGray":	
-				componentNum = 1;
-				break;
-			case "DeviceRGB":
-				componentNum = 3;
-				break;
-			case "DeviceCMYK":
-				componentNum = 4;
-				break;
+		
+		if(colorSpace != null) {
+			switch(colorSpace) {
+				case "DeviceGray":	
+					componentNum = 1;
+					break;
+				case "DeviceRGB":
+					componentNum = 3;
+					break;
+				case "DeviceCMYK":
+					componentNum = 4;
+					break;
+			}
+		}
+		else {
+			componentNum = 1;
 		}
 		
 		byteWidth = (int) Math.ceil(width * ((componentNum * bpc)/8));

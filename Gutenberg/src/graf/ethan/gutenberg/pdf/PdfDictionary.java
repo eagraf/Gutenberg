@@ -11,7 +11,7 @@ import java.util.HashMap;
 public class PdfDictionary {
 	
 	private HashMap<String, Object> dict;
-	private Xref crossScanner;
+	public Xref crossScanner;
 	
 	public PdfDictionary(HashMap<String, Object> dict, GutenbergScanner scanner) {
 		this.dict = dict;

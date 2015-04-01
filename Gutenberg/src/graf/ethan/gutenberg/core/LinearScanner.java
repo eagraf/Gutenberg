@@ -11,11 +11,7 @@ import graf.ethan.gutenberg.scanner.InitialScanner;
 import graf.ethan.gutenberg.scanner.PdfScanner;
 import graf.ethan.gutenberg.scanner.StreamScanner;
 import graf.ethan.gutenberg.scanner.XObjectScanner;
-import graf.ethan.gutenberg.xref.XrefLinear;
 import graf.ethan.gutenberg.xref.XrefList;
-import graf.ethan.gutenberg.xref.XrefScanner;
-import graf.ethan.gutenberg.xref.XrefSection;
-import graf.ethan.gutenberg.xref.XrefStreamScanner;
 
 public class LinearScanner {
 	

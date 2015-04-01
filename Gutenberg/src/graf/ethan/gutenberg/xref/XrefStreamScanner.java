@@ -181,6 +181,7 @@ public class XrefStreamScanner extends Xref{
 							next = next << (8 * (field2 - j - 1));
 							loc += next;
 						}
+						@SuppressWarnings("unused")
 						long gen = 0;
 						for(int k = 0; k < field3; k ++) {
 							int next = filter.read();
