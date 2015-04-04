@@ -61,6 +61,7 @@ public class GutenbergScanner {
 			reverseScanner.scanTrailers(reverseScanner.getTrailerPos());
 			PdfDictionary trailer = reverseScanner.getTrailer();
 			this.crossScanner = reverseScanner.getXref();
+			System.out.println(trailer);
 			trailer.setCrossScanner(this.crossScanner);
 			document.setTrailer(trailer);
 			scanCatalog();

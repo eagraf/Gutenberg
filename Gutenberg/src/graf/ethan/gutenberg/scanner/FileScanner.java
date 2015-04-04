@@ -108,6 +108,21 @@ public class FileScanner {
 		}
 	}
 	
+	public int readInt(int bytes, boolean signed) {
+		int res = nextChar();
+		for(int i = 1; i < bytes; i ++) {
+			res *= 8;
+			res += nextChar();
+		}
+		
+		if(signed) {
+			//Undo the twos complement
+			res -= 1;
+			res = ~res;
+		}
+		return res;
+	}
+	
 	/*
 	 * Function that skips over whitespace characters.
 	 */

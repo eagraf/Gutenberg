@@ -108,7 +108,6 @@ public class FilteredScanner {
 		else {
 			filter = new Filterless(startPos, length, scanner.fileScanner.file);
 		}
-		
 	}
 	
 	public char nextChar() {

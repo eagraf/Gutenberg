@@ -448,8 +448,11 @@ public class GutenbergDrawer {
 						switch((String) object.dictionary.get("Subtype")) {
 							case "Image":
 								BufferedImage image = ((PdfImage) object.object).image;
+								//Set to image space, bounded by a 1x1 box.
 								double[][] doGraph = {{(1d/image.getWidth()), 0, 0}, {0, (1d/image.getHeight()), 0}, {0, 0, 1}}; 
 								Matrix transform = Matrix.multiply(new Matrix(doGraph), page.state.ctm);
+								System.out.println(page.state.ctm);
+								System.out.println(transform.toString());
 								g.drawImage(image,
 										new AffineTransformOp(new AffineTransform(transform.get(0,0),
 												transform.get(1, 0),

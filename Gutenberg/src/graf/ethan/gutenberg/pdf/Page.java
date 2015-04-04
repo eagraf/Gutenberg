@@ -108,12 +108,7 @@ public class Page {
 		
 		//Get the fonts used by the page.
 		if(resources.has("Font")) {
-			if(resources.get("Font").getClass() == HashMap.class) {
-				fontDictionary = (PdfDictionary) resources.get("Font");
-			}
-			else {
-				fontDictionary = (PdfDictionary) resources.get("Font");
-			}
+			fontDictionary = (PdfDictionary) resources.get("Font");
 			this.fonts = getFonts();
 		}
 		
@@ -149,21 +144,14 @@ public class Page {
 	    while (it.hasNext()) {
 	        Map.Entry pairs = (Map.Entry)it.next();
 	        Object font = pairs.getValue();
+	        PdfDictionary dict = null;
 	        if(font.getClass() == HashMap.class) {
-		        PdfFont newFont;
-		        File fontFile;
-		        switch((String)((HashMap<String, Object>) font).get("BaseFont")) {
-		        	case "Times-Roman":
-		        		fontFile = new File(GutenbergCore.class.getResource("resources/fonts/times.ttf").getFile());
-		        		newFont = new PdfFont("Times-Roman", Font.TRUETYPE_FONT, fontFile);
-		        		res.put((String) pairs.getKey(), newFont);
-		        }
+	        	 dict = new PdfDictionary((HashMap<String, Object>)  font, scanner);
 	        }
 	        else if(font.getClass() == PdfObjectReference.class) {
-	        	File fontFile = new File(DumDum.class.getResource("times.ttf").getFile());
-        		PdfFont newFont = new PdfFont("Times-Roman", Font.TRUETYPE_FONT, fontFile);
-        		res.put((String) pairs.getKey(), newFont);
+	        	dict = (PdfDictionary) scanner.crossScanner.getObject((PdfObjectReference) font);
 	        }
+	        res.put((String) pairs.getKey(), getFont(dict));
 	        it.remove(); // avoids a ConcurrentModificationException
 	    } 
 	    System.out.println("Font Dictionary: " + res);
@@ -183,5 +171,91 @@ public class Page {
 	 */
 	public void popStack() {
 		state = stateStack.pop();
+	}
+	
+	/*
+	 * Get a specific font. Called by the getFonts() method.
+	 */
+	public PdfFont getFont(PdfDictionary font) {
+		PdfFont newFont = null;
+        File fontFile;
+        switch((String)((PdfDictionary) font).get("BaseFont")) {
+        	case "Times-Roman":
+        		fontFile = new File(DumDum.class.getResource("times.ttf").getFile());
+        		newFont = new PdfFont("Times-Roman", Font.TRUETYPE_FONT, fontFile);
+        		break;
+        	case "Times-Bold":
+        		fontFile = new File(DumDum.class.getResource("timesbd.ttf").getFile());
+        		newFont = new PdfFont("Times-Bold", Font.TRUETYPE_FONT, fontFile);
+        		break;
+        	case "Times-Italic":
+        		fontFile = new File(DumDum.class.getResource("timesi.ttf").getFile());
+        		newFont = new PdfFont("Times-Italic", Font.TRUETYPE_FONT, fontFile);
+        		break;
+        	case "Times-BoldItalic":
+        		fontFile = new File(DumDum.class.getResource("timesbi.ttf").getFile());
+        		newFont = new PdfFont("Times-BoldItalic", Font.TRUETYPE_FONT, fontFile);
+        		break;
+        	case "Helvetica":
+        		fontFile = new File(DumDum.class.getResource("arial.ttf").getFile());
+        		newFont = new PdfFont("Helvetica", Font.TRUETYPE_FONT, fontFile);
+        		break;
+        	case "Helvetica-Bold":
+        		fontFile = new File(DumDum.class.getResource("arialbd.ttf").getFile());
+        		newFont = new PdfFont("Helvetica-Bold", Font.TRUETYPE_FONT, fontFile);
+        		break;
+        	case "Helvetica-Oblique":
+        		fontFile = new File(DumDum.class.getResource("ariali.ttf").getFile());
+        		newFont = new PdfFont("Helvetica-Oblique", Font.TRUETYPE_FONT, fontFile);
+        		break;
+        	case "Helvetica-BoldOblique":
+        		fontFile = new File(DumDum.class.getResource("arialbi.ttf").getFile());
+        		newFont = new PdfFont("Helvetica-BoldOblique", Font.TRUETYPE_FONT, fontFile);
+        		break;
+        	case "Courier":
+        		fontFile = new File(DumDum.class.getResource("cour.ttf").getFile());
+        		newFont = new PdfFont("Courier", Font.TRUETYPE_FONT, fontFile);
+        		break;
+        	case "Courier-Bold":
+        		fontFile = new File(DumDum.class.getResource("courbd.ttf").getFile());
+        		newFont = new PdfFont("Courier-Bold", Font.TRUETYPE_FONT, fontFile);
+        		break;
+        	case "Courier-Oblique":
+        		fontFile = new File(DumDum.class.getResource("courii.ttf").getFile());
+        		newFont = new PdfFont("Times-Roman", Font.TRUETYPE_FONT, fontFile);
+        		break;
+        	case "Courier-BoldOblique":
+        		fontFile = new File(DumDum.class.getResource("courbi.ttf").getFile());
+        		newFont = new PdfFont("Courier-BoldOblique", Font.TRUETYPE_FONT, fontFile);
+        		break;
+        	case "Symbol":
+        		fontFile = new File(DumDum.class.getResource("symbol.ttf").getFile());
+        		newFont = new PdfFont("Symbol", Font.TRUETYPE_FONT, fontFile);
+        		break;
+        	case "ZapfDingbats":
+        		fontFile = new File(DumDum.class.getResource("zapf-dingbats-bt.ttf").getFile());
+        		newFont = new PdfFont("ZapfDingbats", Font.TRUETYPE_FONT, fontFile);
+        		break;
+        	default:
+        		PdfDictionary descriptor;
+        		if(((PdfDictionary) font).has("FontDescriptor")) {
+        			descriptor = (PdfDictionary) font.get("FontDescriptor");
+        			if(descriptor.has("FontFile")) {
+        				System.out.println("Type 1 Font");
+        			}
+        			else if(descriptor.has("FontFile2")) {
+        				System.out.println("TrueType Font");
+        			}
+        			else if(descriptor.has("FontFile3")) {
+        				System.out.println("Type 1 Font");
+        			}
+        		}
+        		else {
+        			fontFile = new File(DumDum.class.getResource("times.ttf").getFile());
+	        		newFont = new PdfFont("Times-Roman", Font.TRUETYPE_FONT, fontFile);
+        		}
+        		break;
+        }
+        return newFont;
 	}
 }

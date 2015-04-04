@@ -81,7 +81,7 @@ public class InitialScanner {
 	/*
 	 * Scans all of the trailers, based on the location of the last trailer.
 	 */
-	public PdfDictionary scanTrailers(long firstPos) {
+	public void scanTrailers(long firstPos) {
 		PdfDictionary res = null;
 		fileScanner.setPosition(firstPos);
 		pdfScanner.scanNext();
@@ -93,11 +93,11 @@ public class InitialScanner {
 			while(!fin) {
 				pos = scanXrefSection(pos);		
 				if(pos == -1) {
+					System.out.println("fin");
 					fin = true;
 				}
 			}
 		}
-		return res;
 	}
 	
 	/*
@@ -107,13 +107,17 @@ public class InitialScanner {
 		System.out.println("POS: " + pos);
 		scanner.fileScanner.setPosition(pos);
 		Object next = pdfScanner.scanNext();
+		System.out.println(next);
 		if(next.getClass() == String.class) {
+			
 			if(((String) next).equals("XREF")) {
+				
 				ArrayList<XrefSection> sections = new ArrayList<>();
 				while(true) {
 					next = pdfScanner.scanNext();
 					int start, len;
 					if(next.getClass() == Integer.class) {
+						
 						start = (int) next;
 						System.out.println(next);
 						len = (int) pdfScanner.scanNext();
@@ -127,8 +131,10 @@ public class InitialScanner {
 							System.out.println("XREF Section: " + pos);
 							xrefList.addXref(new XrefScanner(scanner, sections));
 							PdfDictionary trailer = (PdfDictionary) pdfScanner.scanNext();
+							System.out.println("Trailer: " + trailer);
 							if(firstTrailer) {
 								this.trailer = trailer;
+								firstTrailer = false;
 							}
 							if(trailer.has("Prev")) {
 								return ((Number) trailer.get("Prev")).longValue();
@@ -144,6 +150,7 @@ public class InitialScanner {
 		if(next.getClass() == PdfDictionary.class) {
 			if(firstTrailer) {
 				this.trailer = (PdfDictionary) next;
+				firstTrailer = false;
 			}
 			if(((PdfDictionary) next).has("Type")) {
 				String type = (String) ((PdfDictionary) next).get("Type");
