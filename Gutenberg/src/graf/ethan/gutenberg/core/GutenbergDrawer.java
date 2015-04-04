@@ -267,7 +267,7 @@ public class GutenbergDrawer {
 		PdfOperation next = scanner.streamScanner.nextOperation();
 		//Loop through every operation.
 		while(next != null) {
-			System.out.println(next);
+			//System.out.println(next);
 			if(next != null) {
 				ArrayList<Object> args = next.args;
 				switch(next.operator.id) {

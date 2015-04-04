@@ -142,6 +142,7 @@ public class Page {
 		HashMap<String, PdfFont> res = new HashMap<String, PdfFont>();;
 		Iterator<Entry<String, Object>> it = fontDictionary.getDict().entrySet().iterator();
 	    while (it.hasNext()) {
+	    	System.out.println("Font:");
 	        Map.Entry pairs = (Map.Entry)it.next();
 	        Object font = pairs.getValue();
 	        PdfDictionary dict = null;
@@ -179,6 +180,7 @@ public class Page {
 	public PdfFont getFont(PdfDictionary font) {
 		PdfFont newFont = null;
         File fontFile;
+        //Switch through standard fonts and read the embedded font it it is there.
         switch((String)((PdfDictionary) font).get("BaseFont")) {
         	case "Times-Roman":
         		fontFile = new File(DumDum.class.getResource("times.ttf").getFile());
@@ -238,19 +240,29 @@ public class Page {
         		break;
         	default:
         		PdfDictionary descriptor;
+        		//Scan the embedded font file.
         		if(((PdfDictionary) font).has("FontDescriptor")) {
+        			System.out.println("Descriptor");
         			descriptor = (PdfDictionary) font.get("FontDescriptor");
         			if(descriptor.has("FontFile")) {
         				System.out.println("Type 1 Font");
         			}
         			else if(descriptor.has("FontFile2")) {
         				System.out.println("TrueType Font");
+        				scanner.fontScanner.scanTrueType((PdfObjectReference) descriptor.getReference("FontFile2"));
         			}
         			else if(descriptor.has("FontFile3")) {
         				System.out.println("Type 1 Font");
         			}
+        			else {
+        				System.out.println("Default");
+            			fontFile = new File(DumDum.class.getResource("times.ttf").getFile());
+    	        		newFont = new PdfFont("Times-Roman", Font.TRUETYPE_FONT, fontFile);
+        			}
         		}
+        		//Revert to a default font file.
         		else {
+        			System.out.println("Default");
         			fontFile = new File(DumDum.class.getResource("times.ttf").getFile());
 	        		newFont = new PdfFont("Times-Roman", Font.TRUETYPE_FONT, fontFile);
         		}

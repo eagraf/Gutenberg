@@ -1,6 +1,7 @@
 package graf.ethan.gutenberg.xref;
 
 import graf.ethan.gutenberg.core.GutenbergScanner;
+import graf.ethan.gutenberg.pdf.PdfObject;
 import graf.ethan.gutenberg.pdf.PdfObjectReference;
 import graf.ethan.gutenberg.scanner.PdfScanner;
 
@@ -40,7 +41,12 @@ public class XrefScanner extends Xref{
 				long pos = (long) pdfScanner.scanLong();
 				pdfScanner.scanner.setPosition(pos);
 				System.out.println("Reference: " + reference + " XREF Scanner Position:" + pos);
-				return pdfScanner.scanObject().object;
+				/*if(reference.objectNumber == 292) {
+					System.out.println(pdfScanner.scanNext());
+				}*/
+				Object object = pdfScanner.scanNext();
+				System.out.println(object);
+				return object;
 			}
 		}
 		//If this reference doesn't exist.
@@ -62,7 +68,7 @@ public class XrefScanner extends Xref{
 				
 				//Gets the position of the entry's object in the file.
 				long pos = (long) pdfScanner.scanLong();
-				
+				System.out.println(pos);
 				return pos;
 			}
 		}

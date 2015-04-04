@@ -16,8 +16,6 @@ import graf.ethan.gutenberg.scanner.FilteredScanner;
  */
 public class FontStreamScanner extends FilteredScanner {
 	
-	private GutenbergScanner scanner;
-	
 	public long length1;
 	
 	public FontStreamScanner(GutenbergScanner scanner) {
@@ -31,6 +29,7 @@ public class FontStreamScanner extends FilteredScanner {
 				//TrueType Font
 				//Allocates a buffer the length of the encoded data
 				data = ByteBuffer.allocate((int) length1);
+				System.out.println(length1);
 				//Copy the data into memory.
 				for(int i = 0; i < length1; i ++) {
 					byte dat = (byte) nextChar();
@@ -41,14 +40,17 @@ public class FontStreamScanner extends FilteredScanner {
 		return null;
 	}
 	
-	public Font scanTrueType() {
+	public Font scanTrueType(PdfObjectReference ref) {
+		setStream(ref);
 		//Get the font program within the PDF file.
-		getData(-1);
+		ByteBuffer data = getData(-1);
+		TrueTypeScanner ttScanner = new TrueTypeScanner(data);
 		return new Font();
 	}
 	
 	@Override
 	public void setStream(PdfObjectReference reference) {
+		System.out.println(scanner.crossScanner);
 		scanner.fileScanner.setPosition(scanner.crossScanner.getObjectPosition(reference));
 		
 		//Scan in the stream dictionary
@@ -81,6 +83,7 @@ public class FontStreamScanner extends FilteredScanner {
 		//This is the overrided section. Gets the length of the decoded data.
 		if(streamDictionary.has("Length1")) {
 			this.length1 = ((Number) streamDictionary.get("Length1")).longValue();
+			System.out.println("Length: " + length); 
 		}
 		
 		if(streamDictionary.has("Filter")) {

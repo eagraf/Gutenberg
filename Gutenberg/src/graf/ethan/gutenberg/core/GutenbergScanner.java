@@ -1,5 +1,6 @@
 package graf.ethan.gutenberg.core;
 
+import graf.ethan.gutenberg.font.FontStreamScanner;
 import graf.ethan.gutenberg.pdf.Page;
 import graf.ethan.gutenberg.pdf.PdfDictionary;
 import graf.ethan.gutenberg.pdf.PdfDocument;
@@ -34,6 +35,7 @@ public class GutenbergScanner {
 	public XObjectScanner xObjectScanner;
 	public LinearScanner linearScanner;
 	public InitialScanner reverseScanner;
+	public FontStreamScanner fontScanner;
 	
 	//Drawers
 	public GutenbergDrawer gutenbergDrawer;
@@ -51,21 +53,25 @@ public class GutenbergScanner {
 		this.pdfScanner = new PdfScanner(this);
 		this.xObjectScanner = new XObjectScanner(this);
 		this.streamScanner = new StreamScanner(this);
+		this.fontScanner = new FontStreamScanner(this);
 		
 		
 		
 		Object first = scanFirst();
 		
+		//Procedure for normal documents.
 		if(!document.linearized) {
+			//Reverse scanner scans xref and trailer sections.
 			this.reverseScanner = new InitialScanner(this);
 			reverseScanner.scanTrailers(reverseScanner.getTrailerPos());
 			PdfDictionary trailer = reverseScanner.getTrailer();
 			this.crossScanner = reverseScanner.getXref();
-			System.out.println(trailer);
 			trailer.setCrossScanner(this.crossScanner);
 			document.setTrailer(trailer);
+			//Next step of the scanning process.
 			scanCatalog();
 		}
+		//Procedure for Linearized PDF files.
 		else {
 			System.out.println("Linearized");
 			this.linearScanner = new LinearScanner(this, (PdfDictionary) first);
