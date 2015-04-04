@@ -12,6 +12,7 @@ public class CCITTFaxDecoder {
 	
 	public static int EOL = 0x1001;
 	
+	//The list of white terminating word.
 	public static final int[] WHITETERMINATOR = {
 		//0-3
 		0x135, 0x47, 0x17, 0x18,
@@ -47,6 +48,7 @@ public class CCITTFaxDecoder {
 		0x14B, 0x132, 0x133, 0x134
 	};
 	
+	//The list of black terminating words.
 	public static final int[] BLACKTERMINATOR = {
 		//0-3
 		0x437, 0xA, 0x7, 0x6,
@@ -82,6 +84,7 @@ public class CCITTFaxDecoder {
 		0x102C, 0x105A, 0x1066, 0x1067
 	};
 	
+	//The list of white makeup words.
 	public static final int[] WHITEMAKEUP = {
 		//64, 128, 192, 256
 		0x3B, 0x32, 0x57, 0xB7,
@@ -105,6 +108,7 @@ public class CCITTFaxDecoder {
 		0x101C, 0x101D, 0x101E, 0x101F
 	};
 	
+	//The list of black makeup words.
 	public static final int[] BLACKMAKEUP = {
 		//64, 128, 192, 256
 		0x40F, 0x10C8, 0x10C9, 0x105B,
@@ -177,6 +181,8 @@ public class CCITTFaxDecoder {
 		writer.write("COLUMNS: " + columns + " ");
 		writer.write("ROWS: " + rows);
 		
+	
+		//Initialize current and reference lines.
 		currentLine = new int[columns + 1];
 		referenceLine = new int[columns + 1];
 	}
@@ -201,9 +207,13 @@ public class CCITTFaxDecoder {
 		
 	}
 	
+	/*
+	 * Scan the current line using 2D decoding.
+	 */
 	public void scanLine2D() throws IOException {
 		int count = 0;
 		white = true;
+		//Scan runs until the total number of pixels exceeds the size of the lines.
 		while(count < columns) {
 			int code = getCodingMode();
 			writer.write("Coding Mode: " + code + " ");
@@ -214,7 +224,7 @@ public class CCITTFaxDecoder {
 					a1 = b2;
 					break;
 				case 5:
-					//Horizontal Mode
+					//Horizontal Mode: Read two run lengths.
 					a1 = a0 + scanRun();
 					fillRun();
 					white = !white;
@@ -229,6 +239,7 @@ public class CCITTFaxDecoder {
 				case -1:
 				case -2:
 				case -3:
+					//Vertical Mode
 					if(b1 == columns) {
 						a1 = b1;
 					}
@@ -240,6 +251,7 @@ public class CCITTFaxDecoder {
 					a1 = 0;
 					break;
 			}
+			//Fill the run and update variables.
 			fillRun();
 			count += a1 - a0;
 			a0 = a1;
@@ -250,11 +262,15 @@ public class CCITTFaxDecoder {
 		a0 = 0;
 	}
 	
+	/*
+	 * Find the positions of b1 and b2 in the reference line.
+	 */
 	public void scanReferenceLine(int pos) throws IOException {
 		boolean done = false;
 		int loc = pos + 1;
 		//Get b1
 		int val = white ? 1 : 0;
+		//Find b1, the first changing element of opposite color.
 		while(!done) {	
 			try {
 				//If it is a changing element of opposite color.
@@ -270,6 +286,7 @@ public class CCITTFaxDecoder {
 			loc ++;
 		}
 		done = false;
+		//Find b2, the changing element after b1.
 		while(!done) {
 			try {
 				if(referenceLine[loc] == val) {
@@ -316,10 +333,12 @@ public class CCITTFaxDecoder {
 			writer.write("Makeup: " + nextWord + " ");
 			while(true) {	
 				nextWord = nextWord();
+				//Add makeup word.
 				if(nextWord >= 64) {
 					res += nextWord;
 					writer.write("Makeup: " + nextWord + " ");
 				}
+				//Add terminating word.
 				else {
 					res += nextWord;
 					writer.write("Terminator: " + nextWord + " ");
@@ -335,10 +354,12 @@ public class CCITTFaxDecoder {
 	 * Get the next bit from the current byte.
 	 */
 	public int nextBit() {
+		//Get the next byte.
 		if(offset == 8) {
 			curr = filter.nextByte();
 			offset = 0;
 		}
+		//Bit shift to get the correct bit.
 		int res = (curr >> (7-offset)) & 1;
 		offset ++;
 		try {

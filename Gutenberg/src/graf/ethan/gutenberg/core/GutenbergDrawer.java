@@ -48,6 +48,7 @@ public class GutenbergDrawer {
 		RESOLUTION = Toolkit.getDefaultToolkit().getScreenResolution();
 		System.out.println("Resolution: " + RESOLUTION);
 		
+		//Set the scaling matrix.
 		scaleMatrix = new Matrix(3, 3, 0);
 		scaleMatrix.set(0,  0,  scale);
 		scaleMatrix.set(1, 1, scale);

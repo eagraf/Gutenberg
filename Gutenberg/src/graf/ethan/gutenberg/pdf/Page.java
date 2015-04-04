@@ -56,20 +56,24 @@ public class Page {
 		
 		this.object = pageObject;
 		
+		//Get the size of the page's rectangle in user space.
 		ArrayList<Integer> rect = getMediaBox(object);
 		WIDTH = (int) (rect.get(2) - rect.get(0));
 		HEIGHT = (int) (rect.get(3) - rect.get(1));
 		
+		//Initialize the graphics state.
 		this.state = new GraphicsState(scanner.gutenbergDrawer, this);
 		this.stateStack = new Stack<>();
 		
+		//Set the bounds of the page in device space.
 		Point2D p1 = Transform.user_device(0, 0, state);
 		Point2D p2 = Transform.user_device(WIDTH, HEIGHT, state);
-	
 		dWidth = (int) (p2.getX() - p1.getX());
 		dHeight = (int) (p1.getY() - p2.getY());
+		//Set the clipping path around the page.
 		state.setClip(x, y, dWidth, dHeight);
 		
+		//Get the content stream[s] of this page.
 		this.contents = new ArrayList<PdfObjectReference>();
 		Object temp = pageObject.getDict().get("Contents");
 		if(temp.getClass() == PdfObjectReference.class) {
@@ -78,9 +82,12 @@ public class Page {
 		else if(temp.getClass() == ArrayList.class) {
 			this.contents = (ArrayList<PdfObjectReference>) temp;
 		}
+		
 		System.out.println(contents.getClass());
 		System.out.println("Page: " + object);
 		System.out.println("Page Contents: " + contents);
+		
+		//Get images, xobjects, forms, etc...
 		getResources();
 	}
 	
@@ -94,6 +101,7 @@ public class Page {
 			rect = (ArrayList<Integer>) object.get("MediaBox");
 		}
 		else {
+			//This is a recursive function.
 			rect = getMediaBox((PdfDictionary) object.get("Parent"));
 		}
 		return rect;
@@ -104,20 +112,21 @@ public class Page {
 		if(object.has("Resources")) {
 			resources = (PdfDictionary) object.get("Resources");
 			System.out.println("Page Resources: " + resources);
-		}
-		
-		//Get the fonts used by the page.
-		if(resources.has("Font")) {
-			fontDictionary = (PdfDictionary) resources.get("Font");
-			this.fonts = getFonts();
-		}
-		
-		//Get the external objects used by the page.
-		if(resources.has("XObject")) {
-			xObjectReferences = (PdfDictionary) resources.get("XObject");
-			getXObjects();
-			System.out.println("XObject References: " + xObjectReferences);
-			System.out.println("XObjects: " + xObjects);
+			
+			//Get the fonts used by the page.
+			if(resources.has("Font")) {
+				fontDictionary = (PdfDictionary) resources.get("Font");
+				this.fonts = getFonts();
+			}
+			
+			//Get the external objects used by the page.
+			if(resources.has("XObject")) {
+				xObjectReferences = (PdfDictionary) resources.get("XObject");
+				getXObjects();
+				
+				System.out.println("XObject References: " + xObjectReferences);
+				System.out.println("XObjects: " + xObjects);
+			}
 		}
 	}
 	
@@ -141,17 +150,20 @@ public class Page {
 	public HashMap<String, PdfFont> getFonts() {
 		HashMap<String, PdfFont> res = new HashMap<String, PdfFont>();;
 		Iterator<Entry<String, Object>> it = fontDictionary.getDict().entrySet().iterator();
+		//Iterate through the fonts.
 	    while (it.hasNext()) {
 	    	System.out.println("Font:");
 	        Map.Entry pairs = (Map.Entry)it.next();
 	        Object font = pairs.getValue();
 	        PdfDictionary dict = null;
+	        //Get the font.
 	        if(font.getClass() == HashMap.class) {
 	        	 dict = new PdfDictionary((HashMap<String, Object>)  font, scanner);
 	        }
 	        else if(font.getClass() == PdfObjectReference.class) {
 	        	dict = (PdfDictionary) scanner.crossScanner.getObject((PdfObjectReference) font);
 	        }
+	        //Put into the font dictionary.
 	        res.put((String) pairs.getKey(), getFont(dict));
 	        it.remove(); // avoids a ConcurrentModificationException
 	    } 
@@ -239,21 +251,26 @@ public class Page {
         		newFont = new PdfFont("ZapfDingbats", Font.TRUETYPE_FONT, fontFile);
         		break;
         	default:
+        		//This defaults if the font given is not one of the standard 14 fonts.
         		PdfDictionary descriptor;
         		//Scan the embedded font file.
         		if(((PdfDictionary) font).has("FontDescriptor")) {
         			System.out.println("Descriptor");
         			descriptor = (PdfDictionary) font.get("FontDescriptor");
+        			//Type 1 Fonts.
         			if(descriptor.has("FontFile")) {
         				System.out.println("Type 1 Font");
         			}
+        			//True Type Fonts
         			else if(descriptor.has("FontFile2")) {
         				System.out.println("TrueType Font");
         				scanner.fontScanner.scanTrueType((PdfObjectReference) descriptor.getReference("FontFile2"));
         			}
+        			//Type 3 Fonts
         			else if(descriptor.has("FontFile3")) {
         				System.out.println("Type 1 Font");
         			}
+        			//Choose default font.
         			else {
         				System.out.println("Default");
             			fontFile = new File(DumDum.class.getResource("times.ttf").getFile());

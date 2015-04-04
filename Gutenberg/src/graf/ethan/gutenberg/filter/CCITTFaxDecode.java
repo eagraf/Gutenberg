@@ -69,6 +69,7 @@ public class CCITTFaxDecode extends Filterless{
 
 	@Override
 	public void reset() {
+		//This probably needs to be fixed.
 		x = 0;
 		y = 0;
 	}

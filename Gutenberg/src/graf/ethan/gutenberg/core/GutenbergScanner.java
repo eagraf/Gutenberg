@@ -98,39 +98,6 @@ public class GutenbergScanner {
 	}
 	
 	/*
-	 * Finds and marks the locations of important structures.
-	 */
-	public void firstPass() {
-		String nextLine = fileScanner.nextLine();
-		xrefs = new ArrayList<>();
-		while(nextLine != null) {
-			switch(nextLine) {
-				case TRAILER:
-					//Find the trailer
-					trailerPos = fileScanner.getPosition();
-					pdfScanner.skipWhiteSpace();
-					document.setTrailer((PdfDictionary) pdfScanner.scanNext());
-					System.out.println("Trailer: " + document.getTrailer());
-					break;
-				case XREF:
-					//Find all of the XREF sections
-					pdfScanner.skipWhiteSpace();
-					int startNum = pdfScanner.scanNumeric().intValue();
-					pdfScanner.skipWhiteSpace();
-					int length = (int) pdfScanner.scanNumeric().intValue();
-					xrefs.add(new XrefSection(startNum, length, fileScanner.getPosition()));
-					crossScanner = new XrefScanner(this, xrefs);
-					break;
-				case STARTXREF:
-					//Find the startxref marker at the end of the file.
-					startXrefPos = fileScanner.getPosition();
-					break;
-				}
-			nextLine = fileScanner.nextLine();
-		}
-	}
-	
-	/*
 	 * Scans the file catalog, which contains important information about the PDF.
 	 */
 	public void scanCatalog() {
@@ -140,29 +107,15 @@ public class GutenbergScanner {
 		System.out.println("Page Tree: " + document.getPageTree());
 	}
 	
+	/*
+	 * Method for early stage cross reference reading.
+	 */
 	public Object getObject(PdfObjectReference reference) {
 		if(document.linearized) {
 			return linearScanner.getObject(reference);
 		}
 		else {
 			return crossScanner.getObject(reference);
-		}
-	}
-	
-	//This gets both the trailer and the cross reference stream.
-	public void scanTrailer() {
-		fileScanner.setPosition(document.file.length() - 1024);
-		System.out.println(pdfScanner.scanNext());
-		
-		String nextLine = fileScanner.nextLine();
-		while(nextLine != null) {
-			if(nextLine == TRAILER) {
-				//Find the trailer
-				trailerPos = fileScanner.getPosition();
-				pdfScanner.skipWhiteSpace();
-				document.setTrailer((PdfDictionary) pdfScanner.scanNext());
-				System.out.println("Trailer: " + document.getTrailer());
-			}
 		}
 	}
 	

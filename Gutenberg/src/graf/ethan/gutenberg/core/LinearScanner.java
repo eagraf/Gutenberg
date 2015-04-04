@@ -13,6 +13,9 @@ import graf.ethan.gutenberg.scanner.StreamScanner;
 import graf.ethan.gutenberg.scanner.XObjectScanner;
 import graf.ethan.gutenberg.xref.XrefList;
 
+/*
+ * The LinearScanner is a special class that scans only the intial stages of Linear PDF files.
+ */
 public class LinearScanner {
 	
 	//Scanners
@@ -29,6 +32,7 @@ public class LinearScanner {
 	
 	@SuppressWarnings("unchecked")
 	public LinearScanner(GutenbergScanner scanner, PdfDictionary lpDict) {
+		//Scanners
 		this.scanner = scanner;
 		this.fileScanner = scanner.fileScanner;
 		this.pdfScanner = scanner.pdfScanner;
@@ -39,14 +43,19 @@ public class LinearScanner {
 		
 		this.params = lpDict;
 		
+		//Get cross-reference table
 		pdfScanner.skipWhiteSpace();
 		long xrefPos = fileScanner.getPosition();
 		getXref(xrefPos);
 		
+		//Set up hintscanner.
 		hintScanner.setStream(((ArrayList<Number>) params.get("H")).get(0).longValue());
 		hintScanner.scanOffsetHeader(((Number) params.get("N")).intValue());
 	}
 	
+	/*
+	 *Get the Cross-Reference Table. 
+	 */
 	public void getXref(long xrefPos) {
 		InitialScanner initialScanner = new InitialScanner(scanner);
 		initialScanner.scanXrefSection(initialScanner.scanXrefSection(xrefPos));
@@ -54,6 +63,7 @@ public class LinearScanner {
 	}
 
 	public Page getPage(int num) {
+		//If it is the first page, read from the beginning section.
 		if(num == 0) {
 			Page page = new Page(scanner, 
 					(PdfDictionary) crossScanner.getObject(new PdfObjectReference((int) params.get("O"), 0)),
@@ -61,11 +71,14 @@ public class LinearScanner {
 			System.out.println("Page: " + page.contents);
 			return page;
 		}
+		//Otherwise, read from the main section
 		if(num < ((Number) params.get("N")).intValue()) {
 			int objNum = 1;
+			//Reach the appropriate section within the hint table.
 			for(int i = 1; i < num; i ++) {
 				objNum += hintScanner.hintTable.offsets[i].objNum;
 			}
+			//Scan the page.
 			System.out.println(objNum);
 			Page page = new Page(scanner, 
 					(PdfDictionary) crossScanner.getObject(new PdfObjectReference(objNum, 0)),
@@ -75,7 +88,7 @@ public class LinearScanner {
 		}
 		return null;
 	}
-
+	
 	public Object getObject(PdfObjectReference reference) {
 		return crossScanner.getObject(reference);
 	}
