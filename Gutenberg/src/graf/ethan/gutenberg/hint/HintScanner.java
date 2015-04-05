@@ -1,7 +1,5 @@
 package graf.ethan.gutenberg.hint;
 
-import java.util.ArrayList;
-
 import graf.ethan.gutenberg.core.GutenbergScanner;
 import graf.ethan.gutenberg.filter.Filterless;
 import graf.ethan.gutenberg.filter.DCTDecode;

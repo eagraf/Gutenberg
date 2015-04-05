@@ -6,8 +6,8 @@ package graf.ethan.gutenberg.font;
 public class TableDirectory {
 	
 	public String identifier;
-	public int checkSum;
-	public int offset;
-	public int length;
+	public long checkSum;
+	public long offset;
+	public long length;
 
 }

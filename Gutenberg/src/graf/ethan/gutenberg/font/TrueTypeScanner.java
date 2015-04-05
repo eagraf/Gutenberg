@@ -1,8 +1,7 @@
 package graf.ethan.gutenberg.font;
 
 import java.nio.ByteBuffer;
-
-import graf.ethan.gutenberg.scanner.FileScanner;
+import java.util.HashMap;
 
 public class TrueTypeScanner {
 	
@@ -13,7 +12,7 @@ public class TrueTypeScanner {
 	private int searchRange;
 	private int entrySelector;
 	private int rangeShift;
-	private TableDirectory[] tableDirectory;
+	private HashMap<String, TableDirectory> tableDirectory;
 	
 	public TrueTypeScanner(ByteBuffer data) {
 		this.buf = data;
@@ -25,10 +24,10 @@ public class TrueTypeScanner {
 		if(readInt(4, false) == 0x00010000) {
 			scalerType = true;
 		}
-		tableNum = readInt(2, false);
-		searchRange = readInt(2, false);
-		entrySelector = readInt(2, false);
-		rangeShift = readInt(2, false);
+		tableNum = (int) readInt(2, false);
+		searchRange = (int) readInt(2, false);
+		entrySelector = (int) readInt(2, false);
+		rangeShift = (int) readInt(2, false);
 		
 		System.out.println("Font Directory");
 		System.out.println("Scaler Type: " + scalerType);
@@ -37,35 +36,37 @@ public class TrueTypeScanner {
 		System.out.println("Entry Selector: " + entrySelector);
 		System.out.println("Range Shift: " + rangeShift);
 		
-		tableDirectory = new TableDirectory[tableNum];
+		tableDirectory = new HashMap<>();
 		for(int i = 0; i < tableNum; i ++) {
-			tableDirectory[i] = new TableDirectory();
+			TableDirectory entry = new TableDirectory();
 			//Read the 4 character identifier.
 			StringBuilder sb = new StringBuilder();
 			for(int j = 0; j < 4; j ++) {
 				sb.append((char) readInt(1, false));
 			}
-			tableDirectory[i].identifier = sb.toString();
-			tableDirectory[i].checkSum = readInt(4, false);
-			tableDirectory[i].offset = readInt(4, false);
-			tableDirectory[i].length = readInt(4, false);
+			entry.identifier = sb.toString();
+			entry.checkSum = readInt(4, false);
+			entry.offset = readInt(4, false);
+			entry.length = readInt(4, false);
 			
-			System.out.println(tableDirectory[i].identifier);
-			System.out.println(tableDirectory[i].checkSum);
-			System.out.println(tableDirectory[i].offset);
-			System.out.println(tableDirectory[i].length);
+			tableDirectory.put(entry.identifier, entry);
+			
+			System.out.println(entry.identifier);
+			System.out.println(entry.checkSum);
+			System.out.println(entry.offset);
+			System.out.println(entry.length);
 		}
 	}
 	
-	public int readInt(int bytes, boolean signed) {
-		int next = buf.get();
-		System.out.println(next);
-		int res = next;
+	public void getCMAP() {
+		
+	}
+	
+	public long readInt(int bytes, boolean signed) {
+		long res = buf.get() & 0xFF;
 		for(int i = 1; i < bytes; i ++) {
-			next = buf.get();
 			res *= 256;
-			res += next;
-			System.out.println(next);
+			res += buf.get() & 0xFF;
 		}
 		
 		if(signed) {

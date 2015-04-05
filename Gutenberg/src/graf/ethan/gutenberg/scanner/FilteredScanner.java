@@ -58,7 +58,7 @@ public class FilteredScanner {
 	
 	public long length;
 	public long startPos;
-	long byteCount = 0;
+	public long byteCount = 0;
 	
 	public FilteredScanner(GutenbergScanner scanner) {
 		this.scanner = scanner;

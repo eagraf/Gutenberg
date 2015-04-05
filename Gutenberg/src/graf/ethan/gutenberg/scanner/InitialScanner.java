@@ -38,12 +38,18 @@ public class InitialScanner {
 		this.xrefList = new XrefList();
 	}
 	
+	/*
+	 * Read the previous character.
+	 */
 	public char prev() {
 		char res = fileScanner.nextChar();
 		fileScanner.shiftPosition(-2);
 		return res;
 	}
 	
+	/*
+	 * Read in the line above.
+	 */
 	public String prevLine() {
 		StringBuilder sb = new StringBuilder();
 		char next = prev();
@@ -62,6 +68,7 @@ public class InitialScanner {
 			String line = prevLine();
 			System.out.println(line);
 			try {
+				//If the string "trailer" is in the line.
 				if(line.substring(0, 7).equals("trailer")) {
 					System.out.println("Trailer Pos: " + fileScanner.getPosition());
 					return (long) fileScanner.getPosition() - 1;
@@ -82,14 +89,16 @@ public class InitialScanner {
 	 * Scans all of the trailers, based on the location of the last trailer.
 	 */
 	public void scanTrailers(long firstPos) {
-		PdfDictionary res = null;
 		fileScanner.setPosition(firstPos);
+		//Skip to the correct position.
 		pdfScanner.scanNext();
 		pdfScanner.scanNext();
 		pdfScanner.scanNext();
+		//Find the position of the last xref section.
 		if(((String) pdfScanner.scanNext()).equals("STARTXREF")) {
 			long pos = ((Number) pdfScanner.scanNext()).longValue();
 			boolean fin = false;
+			//Scan all of the xref sections.
 			while(!fin) {
 				pos = scanXrefSection(pos);		
 				if(pos == -1) {
@@ -104,72 +113,92 @@ public class InitialScanner {
 	 * Scan a cross reference section. Returns the prev trailer entry if it exists.
 	 */
 	public long scanXrefSection(long pos) {
-		System.out.println("POS: " + pos);
 		scanner.fileScanner.setPosition(pos);
 		Object next = pdfScanner.scanNext();
 		System.out.println(next);
+		//Scan a normal xref section, or a cross reference stream.
 		if(next.getClass() == String.class) {
-			
 			if(((String) next).equals("XREF")) {
-				
-				ArrayList<XrefSection> sections = new ArrayList<>();
-				while(true) {
-					next = pdfScanner.scanNext();
-					int start, len;
-					if(next.getClass() == Integer.class) {
-						
-						start = (int) next;
-						System.out.println(next);
-						len = (int) pdfScanner.scanNext();
-						System.out.println(len);
-						pdfScanner.skipWhiteSpace();
-						sections.add(new XrefSection(start, len, fileScanner.getPosition()));
-						fileScanner.shiftPosition(20 * len);
-					}
-					else if(next.getClass() == String.class) {
-						if(next.equals("TRAILER")) {
-							System.out.println("XREF Section: " + pos);
-							xrefList.addXref(new XrefScanner(scanner, sections));
-							PdfDictionary trailer = (PdfDictionary) pdfScanner.scanNext();
-							System.out.println("Trailer: " + trailer);
-							if(firstTrailer) {
-								this.trailer = trailer;
-								firstTrailer = false;
-							}
-							if(trailer.has("Prev")) {
-								return ((Number) trailer.get("Prev")).longValue();
-							}
-							else {
-								return -1;
-							}
-						}
-					}
-				}
+				return scanXref();
 			}
 		}
+		//Cross reference stream.
 		if(next.getClass() == PdfDictionary.class) {
-			if(firstTrailer) {
-				this.trailer = (PdfDictionary) next;
-				firstTrailer = false;
-			}
-			if(((PdfDictionary) next).has("Type")) {
-				String type = (String) ((PdfDictionary) next).get("Type");
-				System.out.println(type);
-				if(type.equals("XRef")) {
-					XrefStreamScanner res = new XrefStreamScanner(scanner);
-					pdfScanner.skipWhiteSpace();
-					res.setStream(pos);
-					xrefList.addXref(res);
-				}
-			}
-			if(((PdfDictionary) next).has("Prev")) {
-				return ((Number) ((PdfDictionary) next).get("Prev")).longValue();
-			}
-			else {
-				return -1;
-			}
+			return scanXrefStream((PdfDictionary) next, pos);
 		}
 		return -1;
+	}
+	
+	/*
+	 * Scan a normal xref section.
+	 */
+	public long scanXref() {
+		Object next;
+		ArrayList<XrefSection> sections = new ArrayList<>();
+		while(true) {
+			next = pdfScanner.scanNext();
+			int start, len;
+			//Scan in the parameters for xref sections, the start number and length.
+			if(next.getClass() == Integer.class) {
+				start = (int) next;
+				System.out.println(next);
+				len = (int) pdfScanner.scanNext();
+				System.out.println(len);
+				pdfScanner.skipWhiteSpace();
+				sections.add(new XrefSection(start, len, fileScanner.getPosition()));
+				fileScanner.shiftPosition(20 * len);
+			}
+			//Once the xref is scanned, scan the trailer.
+			else if(next.getClass() == String.class) {
+				if(next.equals("TRAILER")) {
+					xrefList.addXref(new XrefScanner(scanner, sections));
+					PdfDictionary trailer = (PdfDictionary) pdfScanner.scanNext();
+					System.out.println("Trailer: " + trailer);
+					//If this is the first trailer scanned (i.e. at the end of the file), record it as the actual trailer.
+					if(firstTrailer) {
+						this.trailer = trailer;
+						firstTrailer = false;
+					}
+					//If there is a previous entry, return its location so it can be scanned too.
+					if(trailer.has("Prev")) {
+						return ((Number) trailer.get("Prev")).longValue();
+					}
+					else {
+						return -1;
+					}
+				}
+			}
+		}
+	}
+	
+	/*
+	 * Scan a cross reference stream.
+	 */
+	public long scanXrefStream(PdfDictionary next, long pos) {
+		//Record the trailer if it is the final one.
+		if(firstTrailer) {
+			this.trailer = (PdfDictionary) next;
+			firstTrailer = false;
+		}
+		//Make sure that this is a cross reference stream.
+		if(((PdfDictionary) next).has("Type")) {
+			String type = (String) ((PdfDictionary) next).get("Type");
+			System.out.println(type);
+			if(type.equals("XRef")) {
+				//Create the XrefStreamScanner.
+				XrefStreamScanner res = new XrefStreamScanner(scanner);
+				pdfScanner.skipWhiteSpace();
+				res.setStream(pos);
+				xrefList.addXref(res);
+			}
+		}
+		//Return the location of the prev entry.
+		if(((PdfDictionary) next).has("Prev")) {
+			return ((Number) ((PdfDictionary) next).get("Prev")).longValue();
+		}
+		else {
+			return -1;
+		}
 	}
 	
 	public XrefList getXref() {
