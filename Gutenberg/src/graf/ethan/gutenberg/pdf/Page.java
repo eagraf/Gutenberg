@@ -1,6 +1,5 @@
 package graf.ethan.gutenberg.pdf;
 
-import graf.ethan.gutenberg.core.GutenbergCore;
 import graf.ethan.gutenberg.core.GutenbergScanner;
 import graf.ethan.gutenberg.misc.Transform;
 import graf.ethan.gutenberg.resources.fonts.DumDum;
