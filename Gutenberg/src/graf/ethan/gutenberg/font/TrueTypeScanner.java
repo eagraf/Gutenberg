@@ -15,10 +15,15 @@ public class TrueTypeScanner {
 	private int rangeShift;
 	private HashMap<String, TableDirectory> tableDirectory;
 	
+	private TrueTypeFont font;
+	
 	public TrueTypeScanner(ByteBuffer data) {
 		this.buf = data;
+		
+		font = new TrueTypeFont();
+		
 		scanFontDirectory();
-		getCmap((int) tableDirectory.get("cmap").offset);
+		font.cmap = getCmap((int) tableDirectory.get("cmap").offset);
 	}
 	
 	public void scanFontDirectory() {
@@ -62,59 +67,34 @@ public class TrueTypeScanner {
 		}
 	}
 	
-	public void getCmap(int offset) {
+	public CMAP[] getCmap(int offset) {
 		//Set the location to the position of the cmap table.
 		buf.position(offset);
-		for(int j = offset; j < offset+100; j ++) {
-			System.out.println(buf.get(j));
-		}
+
 		int version = (int) readInt(2, false);
 		int subTableNum = (int) readInt(2, false);
 		
-		CodingTable[] maps = new CodingTable[subTableNum];
+		CMAP[] maps = new CMAP[subTableNum];
 		
 		System.out.println("Version: " + version);
 		System.out.println("Sub-Table Number: " + subTableNum);
 		
 		for(int i = 0; i < subTableNum; i ++) {
-			maps[i] = new CodingTable();
+			maps[i] = new CMAP();
 			maps[i].platformID = (int) readInt(2, false);
 			maps[i].platformSpecificID = (int) readInt(2, false);
 			maps[i].offset = (int) readInt(4, false);
-			
-			System.out.println(maps[i].platformID);
-			switch(maps[i].platformID) {
-			case 0:
-				System.out.println("Unicode Platform");
-				System.out.println("Platform Specific ID: " + maps[i].platformSpecificID);
-				System.out.println("Offset: " + maps[i].offset);
-				break;
-			case 1:
-				System.out.println("Macintosh Platform");
-				System.out.println("Platform Specific ID: " + maps[i].platformSpecificID);
-				System.out.println("Offset: " + maps[i].offset);
-				break;
-			case 2:
-				System.out.println("Reserved Platform");
-				System.out.println("Platform Specific ID: " + maps[i].platformSpecificID);
-				System.out.println("Offset: " + maps[i].offset);
-				break;
-			case 3:
-				System.out.println("Windows Platform");
-				System.out.println("Platform Specific ID: " + maps[i].platformSpecificID);
-				System.out.println("Offset: " + maps[i].offset);
-				break;
-			}
 		}
 		for(int i = 0; i < subTableNum; i ++) {
 			maps[i].map = scanCmapTable(offset+maps[i].offset);
 		}
-		
+		return maps;
 	}
 	
 	/*
 	 * Actually map the encodings to the glyph indices.
 	 */
+	@SuppressWarnings("unused")
 	public HashMap<Integer, Integer> scanCmapTable(int offset) {
 		System.out.println("Offset: " + offset);
 		buf.position(offset);
@@ -132,9 +112,9 @@ public class TrueTypeScanner {
 			//Format 0: 256 single byte character codes mapped to 256 single byte glyph indices. Rarely used.
 			res = new HashMap<Integer, Integer>();
 			for(int i = 0; i < 256; i ++) {
-				int value =(int) readInt(1, false);
-				res.put(value, i);
-				System.out.println(value + ", " + i);
+				int value = (int) readInt(1, false);
+				res.put(i, value);
+				System.out.println(i + ", " + value);
 			}
 			return res;
 		case 4:
@@ -148,14 +128,66 @@ public class TrueTypeScanner {
 			int reservePad = (int) readInt(2, false);
 			int[] startCode = readArray(2, false, segCountX2/2);
 			int[] idDelta = readArray(2, false, segCountX2/2);
+			int off1 = buf.position();
 			int[] idRangeOffset = readArray(2, false, segCountX2/2);
-			break;
+			
+			res = new HashMap<Integer, Integer>();
+			//Map every possible 2 byte character code.
+			for(int c = 0; c < 65536; c ++) {
+				boolean done = false;
+				int i = 0;
+				while(!done) {
+					//Find the first endcode that is greater or equal to the character code to be mapped.
+					if(endCode[i] >= c) {
+						//If the corresponding startcode is less than or equal to the character code:
+						if(startCode[i] <= c) {
+							//If idRangeOffset does not equal 0, use this equation to find the glyph index address:
+							//glyphIndexAddress = idRangeOffset[i] + 2 * (c - startCode[i]) + (Ptr) &idRangeOffset[i]
+							if(idRangeOffset[i] != 0) {
+								//glyphIndexAddress = idRangeOffset[i] + 2 * (c - startCode[i]) + (Ptr) &idRangeOffset[i]
+								int off2 = off1 + (2 * i);
+								int glyphIndexAddress = idRangeOffset[i] + (2 * (c - startCode[i])) + off2;
+								System.out.println("Address: " + glyphIndexAddress);
+								
+								//Read the glyph index.
+								buf.position(glyphIndexAddress);
+								int glyphIndex = (int) readInt(2, false);
+								
+								int value = 0;
+								//Add glyphIndex to idDelta.
+								if(glyphIndex != 0) {
+									value = (glyphIndex + idDelta[i]) % 35536;
+								}
+								res.put(c, value);
+								System.out.println(c + ", " + value);
+							}
+							//Otherwise, just add the character code and idDelta.
+							else {
+								int value = (idDelta[i] + c) % 65536;
+								res.put(c, value);
+								System.out.println(c + ", " + value);
+							}
+						}
+						else {
+							res.put(c, 0);
+							//System.out.println(i + ", 0f");
+						}
+						done = true;
+					}
+					//Otherwise, increment.
+					i ++;
+				}
+			}
+			return res;
 		case 6:
 		case 12:
 		}
 		return null;
 	}
 	
+	/*
+	 * Reads in an array of integers instead of just one.
+	 */
 	public int[] readArray(int bytes, boolean signed, int num) {
 		int[] res = new int[num];
 		for(int i = 0; i < num; i ++) {
@@ -164,6 +196,9 @@ public class TrueTypeScanner {
 		return res;
 	}
 	
+	/*
+	 * Read an integer from the buffer. Parameters for number of bytes and whether it is signed.
+	 */
 	public long readInt(int bytes, boolean signed) {
 		long res = buf.get() & 0xFF;
 		for(int i = 1; i < bytes; i ++) {
@@ -178,12 +213,11 @@ public class TrueTypeScanner {
 		}
 		return res;
 	}
-}
-
-class CodingTable {
-	int platformID;
-	int platformSpecificID;
-	int offset;
 	
-	HashMap<Integer, Integer> map;
+	/*
+	 * Return the font.
+	 */
+	public TrueTypeFont getFont() {
+		return font;
+	}
 }

@@ -24,6 +24,7 @@ public class FontStreamScanner extends FilteredScanner {
 	
 	public ByteBuffer getData(int type) {
 		ByteBuffer data;
+		//The principle font types are TrueType fonts and PostScript fonts.
 		switch(type) {
 			case -1:
 				//TrueType Font
@@ -40,6 +41,9 @@ public class FontStreamScanner extends FilteredScanner {
 		return null;
 	}
 	
+	/*
+	 * Scan an embedded TrueType font program.
+	 */
 	public Font scanTrueType(PdfObjectReference ref) {
 		setStream(ref);
 		//Get the font program within the PDF file.
@@ -101,7 +105,4 @@ public class FontStreamScanner extends FilteredScanner {
 			filter = new Filterless(startPos, length, scanner.fileScanner.file);
 		}
 	}
-	
-	
-
 }
