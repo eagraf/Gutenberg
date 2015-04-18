@@ -44,12 +44,12 @@ public class FontStreamScanner extends FilteredScanner {
 	/*
 	 * Scan an embedded TrueType font program.
 	 */
-	public Font scanTrueType(PdfObjectReference ref) {
+	public TrueTypeFont scanTrueType(PdfObjectReference ref) {
 		setStream(ref);
 		//Get the font program within the PDF file.
 		ByteBuffer data = getData(-1);
 		TrueTypeScanner ttScanner = new TrueTypeScanner(data);
-		return new Font();
+		return ttScanner.getFont();
 	}
 	
 	@Override

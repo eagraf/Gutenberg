@@ -57,8 +57,8 @@ public class Page {
 		
 		//Get the size of the page's rectangle in user space.
 		ArrayList<Integer> rect = getMediaBox(object);
-		WIDTH = (int) (rect.get(2) - rect.get(0));
-		HEIGHT = (int) (rect.get(3) - rect.get(1));
+		WIDTH = ((Number) (rect.get(2) - rect.get(0))).intValue();
+		HEIGHT = ((Number) (rect.get(3) - rect.get(1))).intValue();
 		
 		//Initialize the graphics state.
 		this.state = new GraphicsState(scanner.gutenbergDrawer, this);

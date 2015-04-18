@@ -1,7 +1,6 @@
 package graf.ethan.gutenberg.font;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.HashMap;
 
 public class TrueTypeScanner {
@@ -23,9 +22,14 @@ public class TrueTypeScanner {
 		font = new TrueTypeFont();
 		
 		scanFontDirectory();
+		font.head = getHead((int) tableDirectory.get("head").offset);
 		font.cmap = getCmap((int) tableDirectory.get("cmap").offset);
+		font.setUnicodeCmap();
 	}
 	
+	/*
+	 * Essentially the header to the font file.
+	 */
 	public void scanFontDirectory() {
 		buf.position(0);
 		
@@ -37,17 +41,10 @@ public class TrueTypeScanner {
 		entrySelector = (int) readInt(2, false);
 		rangeShift = (int) readInt(2, false);
 		
-		System.out.println("Font Directory");
-		System.out.println("Scaler Type: " + scalerType);
-		System.out.println("Table Number: " + tableNum);
-		System.out.println("Search Range: " + searchRange);
-		System.out.println("Entry Selector: " + entrySelector);
-		System.out.println("Range Shift: " + rangeShift);
-		
 		tableDirectory = new HashMap<>();
 		for(int i = 0; i < tableNum; i ++) {
-			
 			TableDirectory entry = new TableDirectory();
+			
 			//Read the 4 character identifier.
 			StringBuilder sb = new StringBuilder();
 			for(int j = 0; j < 4; j ++) {
@@ -67,20 +64,100 @@ public class TrueTypeScanner {
 		}
 	}
 	
-	public CMAP[] getCmap(int offset) {
+	public TableHead getHead(int offset) {
+		buf.position(offset);
+		
+		TableHead res = new TableHead();
+		res.version = readFixed();
+		res.fontRevision = readFixed();
+		res.checkSumAdjustment = readInt(4, false);
+		res.magicNumber = readInt(4, false);
+		System.out.println(Long.toString(res.magicNumber, 16));
+		
+		int flags = (int) readInt(2, false);
+		res.flags = new boolean[15];
+		for(int i = 0; i < 15; i ++) {
+			int bit = (flags >> (15-i)) & 1;
+			res.flags[i] = (bit == 0) ? false : true; 
+		}
+		
+		res.unitsPerEm = (int) readInt(2, false);
+		res.created = readLongDateTime();
+		res.modified = readLongDateTime();
+		
+		res.xMin = (int) readInt(16, true);
+		res.yMin = (int) readInt(16, true);
+		res.xMax = (int) readInt(16, true);
+		res.yMax = (int) readInt(16, true);
+		
+		int macStyle = (int) readInt(2, false);
+		res.macStyle = new boolean[7];
+		for(int i = 0; i < 7; i ++) {
+			int bit = (macStyle >> (15-i)) & 1;
+			res.macStyle[i] = (bit == 0) ? false : true; 
+		}
+		
+		res.lowestRecPPEM = (int) readInt(2, false);
+		res.indexToLocFormat = (int) readInt(2, false);
+		res.glyphDataFormat = (int) readInt(2, false);
+		
+		return res;
+	}
+	
+	public Glyph getGlyph(int code) {
+		Glyph res = new Glyph();
+		
+		int index = font.uCmap.map.get(code);
+		long location = getLoca((int) tableDirectory.get("loca").offset, index);
+		
+		buf.position((int) ((int) tableDirectory.get("glyf").offset + location));
+		
+		int contourNum = (int) readInt(2, false);
+		int xMin = (int) readInt(2, true);
+		int yMin = (int) readInt(2, true);
+		int xMax = (int) readInt(2, true);
+		int yMax = (int) readInt(2, true);
+		
+		int[] contourEnds = new int[contourNum];
+		for(int i = 0; i < contourNum; i ++) {
+			contourEnds[i] = (int) readInt(2, false);
+		}
+		
+		int instructionLen = (int) readInt(2, false);
+ 		
+		
+		return res;
+	}
+	
+	public long getLoca(int offset, int index) {
+		//Short format: Half of the actual offset.
+		if (font.head.indexToLocFormat == 0) {
+			buf.position(offset + (index * 2));
+			return 2 * readInt(2, false);
+		}
+		//Long format: The whole offset.
+		else if (font.head.indexToLocFormat == 1) {
+			buf.position(offset + (index * 4));
+			return readInt(4, false);
+		}
+		//Return location of missing glyph if indexToLocFormat is invalid.
+		return 0;
+	}
+	
+	public TableCmap[] getCmap(int offset) {
 		//Set the location to the position of the cmap table.
 		buf.position(offset);
 
 		int version = (int) readInt(2, false);
 		int subTableNum = (int) readInt(2, false);
 		
-		CMAP[] maps = new CMAP[subTableNum];
+		TableCmap[] maps = new TableCmap[subTableNum];
 		
 		System.out.println("Version: " + version);
 		System.out.println("Sub-Table Number: " + subTableNum);
 		
 		for(int i = 0; i < subTableNum; i ++) {
-			maps[i] = new CMAP();
+			maps[i] = new TableCmap();
 			maps[i].platformID = (int) readInt(2, false);
 			maps[i].platformSpecificID = (int) readInt(2, false);
 			maps[i].offset = (int) readInt(4, false);
@@ -103,6 +180,8 @@ public class TrueTypeScanner {
 		int length = (int) readInt(2, false);
 		int language = (int) readInt(2, false);
 		
+		int charCount = 1;
+		
 		//A HashMap is returned, with the key being the character code, and the value being the glyph indice.
 		HashMap<Integer, Integer> res;
 		
@@ -114,11 +193,16 @@ public class TrueTypeScanner {
 			for(int i = 0; i < 256; i ++) {
 				int value = (int) readInt(1, false);
 				res.put(i, value);
-				System.out.println(i + ", " + value);
+				if(value != 0) {
+					charCount ++;
+				}
 			}
+			font.charCount = charCount;
 			return res;
 		case 4:
 			//Format 4: Used for non-contiguous stretches of glyph encodings.
+			
+			//Scan in header table.
 			int segCountX2 = (int) readInt(2, false);
 			int searchRange = (int) readInt(2, false);
 			int entrySelector = (int) readInt(2, false);
@@ -147,7 +231,6 @@ public class TrueTypeScanner {
 								//glyphIndexAddress = idRangeOffset[i] + 2 * (c - startCode[i]) + (Ptr) &idRangeOffset[i]
 								int off2 = off1 + (2 * i);
 								int glyphIndexAddress = idRangeOffset[i] + (2 * (c - startCode[i])) + off2;
-								System.out.println("Address: " + glyphIndexAddress);
 								
 								//Read the glyph index.
 								buf.position(glyphIndexAddress);
@@ -159,13 +242,15 @@ public class TrueTypeScanner {
 									value = (glyphIndex + idDelta[i]) % 35536;
 								}
 								res.put(c, value);
-								System.out.println(c + ", " + value);
+								charCount++;
+								System.out.println(c + ", " + getLoca((int) tableDirectory.get("loca").offset, value));
 							}
 							//Otherwise, just add the character code and idDelta.
 							else {
 								int value = (idDelta[i] + c) % 65536;
 								res.put(c, value);
-								System.out.println(c + ", " + value);
+								charCount++;
+								System.out.println(c + ", " + getLoca((int) tableDirectory.get("loca").offset, value));
 							}
 						}
 						else {
@@ -178,6 +263,7 @@ public class TrueTypeScanner {
 					i ++;
 				}
 			}
+			font.charCount = charCount;
 			return res;
 		case 6:
 		case 12:
@@ -200,18 +286,32 @@ public class TrueTypeScanner {
 	 * Read an integer from the buffer. Parameters for number of bytes and whether it is signed.
 	 */
 	public long readInt(int bytes, boolean signed) {
-		long res = buf.get() & 0xFF;
-		for(int i = 1; i < bytes; i ++) {
-			res *= 256;
-			res += buf.get() & 0xFF;
+		long res;
+		if(!signed) {
+			res = buf.get() & 0xFF;
+			for(int i = 1; i < bytes; i ++) {
+				res *= 256;
+				res += buf.get() & 0xFF;
+			}
 		}
-		
-		if(signed) {
-			//Undo the twos complement
-			res -= 1;
-			res = ~res;
+		else {
+			res = buf.get() & 0xFF;
+			for(int i = 1; i < bytes; i ++) {
+				res <<= 8;
+				res += buf.get() & 0xFF;
+			}
 		}
 		return res;
+	}
+	
+	public float readFixed() {
+		int num = (int) readInt(4, true);
+		float res = (float) num / 65536;
+		return res;
+	}
+	
+	public long readLongDateTime() {
+		return readInt(8, false);
 	}
 	
 	/*
