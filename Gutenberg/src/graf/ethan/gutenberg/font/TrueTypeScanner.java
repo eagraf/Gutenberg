@@ -1,7 +1,10 @@
 package graf.ethan.gutenberg.font;
 
 import java.nio.ByteBuffer;
+import java.util.AbstractQueue;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Queue;
 
 public class TrueTypeScanner {
 	
@@ -16,6 +19,8 @@ public class TrueTypeScanner {
 	
 	private TrueTypeFont font;
 	
+	private TrueTypeInterpreter interpreter;
+	
 	public TrueTypeScanner(ByteBuffer data) {
 		this.buf = data;
 		
@@ -25,6 +30,8 @@ public class TrueTypeScanner {
 		font.head = getHead((int) tableDirectory.get("head").offset);
 		font.cmap = getCmap((int) tableDirectory.get("cmap").offset);
 		font.setUnicodeCmap();
+		
+		getGlyph(65);
 	}
 	
 	/*
@@ -104,27 +111,128 @@ public class TrueTypeScanner {
 		return res;
 	}
 	
+	/*
+	 * Retrieve a glyph. This involves getting the actual set of points, and then grid fitting them to make the character more readable.
+	 */
 	public Glyph getGlyph(int code) {
+		TableGlyph table = new TableGlyph();
 		Glyph res = new Glyph();
 		
 		int index = font.uCmap.map.get(code);
 		long location = getLoca((int) tableDirectory.get("loca").offset, index);
 		
+		//Set the position to an offset within the glyph table specified in the location table.
 		buf.position((int) ((int) tableDirectory.get("glyf").offset + location));
 		
-		int contourNum = (int) readInt(2, false);
-		int xMin = (int) readInt(2, true);
-		int yMin = (int) readInt(2, true);
-		int xMax = (int) readInt(2, true);
-		int yMax = (int) readInt(2, true);
+		table.contourNum = (int) readInt(2, false);
+		table.xMin = (int) readInt(2, true);
+		table.yMin = (int) readInt(2, true);
+		table.xMax = (int) readInt(2, true);
+		table.yMax = (int) readInt(2, true);
 		
-		int[] contourEnds = new int[contourNum];
-		for(int i = 0; i < contourNum; i ++) {
-			contourEnds[i] = (int) readInt(2, false);
+		//The entries in this table are the indices of the points representing the ends of contours.
+		//The last value in this array is the number of points.
+		table.contourEnds = new int[table.contourNum];
+		for(int i = 0; i < table.contourNum; i ++) {
+			table.contourEnds[i] = (int) readInt(2, false);
+		}
+		table.pointNum = table.contourEnds[table.contourNum-1];
+		
+		table.instructionLen = (int) readInt(2, false);
+ 		
+		//The instruction codes for the glyph are scanned in.
+		table.instructions = new ArrayList<Integer>();
+		for(int i = 0; i < table.instructionLen; i++) {
+			table.instructions.add(0, (int) readInt(1,  false));
 		}
 		
-		int instructionLen = (int) readInt(2, false);
- 		
+		table.flags = new int[table.pointNum];
+		int flagCount = 0;
+		while(flagCount < table.pointNum) {
+			int flag = (int) readInt(1, false);
+			table.flags[flagCount] = flag;
+			flagCount++;
+			if(((flag >> 4)&1) == 1) {
+				int num = (int) readInt(1, false);
+				for(int i = 0; i < num; i++) {
+					table.flags[flagCount] = flag;
+					flagCount++;
+				}
+			}
+		}
+		
+		int prevXCoord = 0;
+		table.xCoords = new int[table.pointNum];
+		//Get every x coordinate in the glyph.
+		for(int i = 0; i < table.pointNum; i++) {
+			int coord;
+			int flag = table.flags[i];
+			//The glyph is 1 byte(uint8).
+			if(((flag >> 6)&1) == 1) {
+				coord = (int) readInt(1, false);
+				System.out.println(i + ": " + coord);
+				//The sign of the byte.
+				if(((flag >> 3)&1) == 0) {
+					coord *= -1;
+				}
+			}
+			//The glyph is 2 bytes (int16).
+			else {
+				coord = (int) readInt(2, true);
+				System.out.println(i + ": " + coord);
+				//The x coordinate is equivalent to the previous one.
+				if(((flag >> 3)&1) == 0) {
+					coord = prevXCoord;
+				}
+				//The value is the delta x from the previous point.
+				else {
+					coord = prevXCoord + coord;
+				}
+			}
+			//Put the point in the list.
+			table.xCoords[i] = coord;
+			prevXCoord = coord;
+		}
+		
+		int prevYCoord = 0;
+		table.yCoords = new int[table.pointNum];
+		//Get every y coordinate in the glyph.
+		for(int i = 0; i < table.pointNum; i++) {
+			int coord;
+			int flag = table.flags[i];
+			//The glyph is 1 byte(uint8).
+			if(((flag >> 5)&1) == 1) {
+				coord = (int) readInt(1, false);
+				System.out.println(i + ": " + coord);
+				//The sign of the byte.
+				if(((flag >> 2)&1) == 0) {
+					coord *= -1;
+				}
+			}
+			//The glyph is 2 bytes (int16).
+			else {
+				coord = (int) readInt(2, true);
+				System.out.println(i + ": " + coord);
+				//The y coordinate is equivalent to the previous one.
+				if(((flag >> 2)&1) == 0) {
+					coord = prevYCoord;
+				}
+				//The value is the delta y from the previous point.
+				else {
+					coord = prevYCoord + coord;
+				}
+			}
+			//Put the point in the list.
+			table.yCoords[i] = coord;
+			prevYCoord = coord;
+		}
+		
+		System.out.println("Points");
+		for(int i = 0; i < table.pointNum; i++) {
+			System.out.println(table.xCoords[i] + ", " + table.yCoords[i]  + ", " + table.flags[i]);
+		}
+		
+		TrueTypeInterpreter interpreter = new TrueTypeInterpreter(table);
 		
 		return res;
 	}

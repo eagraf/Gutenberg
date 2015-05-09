@@ -1,6 +1,9 @@
 package graf.ethan.gutenberg.font;
 
+import java.util.AbstractQueue;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Queue;
 
 public class TrueTypeFont {
 	
@@ -69,4 +72,42 @@ class TableHead {
 	
 	public int indexToLocFormat;
 	public int glyphDataFormat;
+}
+
+
+/*
+ * Represents the Glyph Table.
+ */
+class TableGlyph {
+	public int contourNum;
+	public int xMin;
+	public int yMin;
+	public int xMax;
+	public int yMax;
+	
+	public int pointNum;
+	
+	public int[] contourEnds;
+	public int instructionLen;
+	public ArrayList<Integer> instructions;
+	public int[] flags;
+	
+	public int xCoords[];
+	public int yCoords[];
+	
+	public int getInstruction() {
+		int res = instructions.get(instructions.size()-1);
+		instructions.remove(instructions.size()-1);
+		return res;
+	}
+}
+
+/*
+ * Represents an entry into the table directory of a TrueType font
+ */
+class TableDirectory {
+	public String identifier;
+	public long checkSum;
+	public long offset;
+	public long length;
 }
