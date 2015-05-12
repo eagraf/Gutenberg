@@ -1,5 +1,6 @@
 package graf.ethan.gutenberg.font;
 
+import java.awt.geom.Path2D;
 import java.nio.ByteBuffer;
 import java.util.AbstractQueue;
 import java.util.ArrayList;
@@ -21,8 +22,11 @@ public class TrueTypeScanner {
 	
 	private TrueTypeInterpreter interpreter;
 	
-	public TrueTypeScanner(ByteBuffer data) {
+	private final int resolution;
+	
+	public TrueTypeScanner(ByteBuffer data, int resolution) {
 		this.buf = data;
+		this.resolution = resolution;
 		
 		font = new TrueTypeFont();
 		
@@ -31,7 +35,7 @@ public class TrueTypeScanner {
 		font.cmap = getCmap((int) tableDirectory.get("cmap").offset);
 		font.setUnicodeCmap();
 		
-		getGlyph(65);
+		getGlyph(97, 12);
 	}
 	
 	/*
@@ -92,10 +96,10 @@ public class TrueTypeScanner {
 		res.created = readLongDateTime();
 		res.modified = readLongDateTime();
 		
-		res.xMin = (int) readInt(16, true);
-		res.yMin = (int) readInt(16, true);
-		res.xMax = (int) readInt(16, true);
-		res.yMax = (int) readInt(16, true);
+		res.xMin = (int) readInt(2, true);
+		res.yMin = (int) readInt(2, true);
+		res.xMax = (int) readInt(2, true);
+		res.yMax = (int) readInt(2, true);
 		
 		int macStyle = (int) readInt(2, false);
 		res.macStyle = new boolean[7];
@@ -104,8 +108,10 @@ public class TrueTypeScanner {
 			res.macStyle[i] = (bit == 0) ? false : true; 
 		}
 		
-		res.lowestRecPPEM = (int) readInt(2, false);
+		res.lowestRecPPEM = (int) readInt(2, false);		
+		res.fontDirectionHint = (int) readInt(2, true);
 		res.indexToLocFormat = (int) readInt(2, false);
+		System.out.println("Index To Location: " + res.indexToLocFormat);
 		res.glyphDataFormat = (int) readInt(2, false);
 		
 		return res;
@@ -114,46 +120,88 @@ public class TrueTypeScanner {
 	/*
 	 * Retrieve a glyph. This involves getting the actual set of points, and then grid fitting them to make the character more readable.
 	 */
-	public Glyph getGlyph(int code) {
-		TableGlyph table = new TableGlyph();
+	public Glyph getGlyph(int code, int pointSize) {
 		Glyph res = new Glyph();
+
+		TableGlyph table = getMaster(code);
+		Point[] outline = scalePoints(table.xCoords, table.yCoords, table.flags, table.pointNum, pointSize);
 		
+		
+		
+		TrueTypeInterpreter interpreter = new TrueTypeInterpreter(table);
+		
+		return res;
+	}
+	
+	/*
+	 * Scale the points to 26.6 fixed point numbers. (1 = pixel).
+	 */
+	public Point[] scalePoints(int[] xCoords, int[] yCoords, int[] flags, int pointNum, int pointSize) {
+		//The scaling function.
+		int scale = (pointSize * resolution) / (72 * font.head.unitsPerEm);
+		Point[] res = new Point[pointNum];
+		//Iterate through points and apply scale.
+		for(int i = 0; i < pointNum; i++) {
+			res[i] = new Point();
+			res[i].x = scale * xCoords[i];
+			res[i].y = scale * yCoords[i];
+			//Transfer information about whether the point is on the curve.
+			res[i].onCurve = ((flags[i]&1) == 1) ? true : false;
+		}
+		return res;
+	}
+	
+	/*
+	 * Get the actual Glyf table, that contains the master outline of the data points.
+	 */
+	public TableGlyph getMaster(int code) {
+		TableGlyph table = new TableGlyph();
+
 		int index = font.uCmap.map.get(code);
 		long location = getLoca((int) tableDirectory.get("loca").offset, index);
+		System.out.println("Location: " + location);
 		
 		//Set the position to an offset within the glyph table specified in the location table.
 		buf.position((int) ((int) tableDirectory.get("glyf").offset + location));
 		
-		table.contourNum = (int) readInt(2, false);
+		table.contourNum = (int) readInt(2, true);
+		System.out.println("Contour Number: " + table.contourNum);
 		table.xMin = (int) readInt(2, true);
 		table.yMin = (int) readInt(2, true);
 		table.xMax = (int) readInt(2, true);
 		table.yMax = (int) readInt(2, true);
+		System.out.println(table.xMin + " " + table.yMin + " " + table.xMax + " " + table.yMax);
+		 
 		
 		//The entries in this table are the indices of the points representing the ends of contours.
 		//The last value in this array is the number of points.
 		table.contourEnds = new int[table.contourNum];
+		table.pointNum = 0;
 		for(int i = 0; i < table.contourNum; i ++) {
 			table.contourEnds[i] = (int) readInt(2, false);
+			System.out.println(table.contourEnds[i]);
 		}
-		table.pointNum = table.contourEnds[table.contourNum-1];
+		table.pointNum = table.contourEnds[table.contourNum-1] + 1;
 		
 		table.instructionLen = (int) readInt(2, false);
+		System.out.println(table.instructionLen);
  		
 		//The instruction codes for the glyph are scanned in.
 		table.instructions = new ArrayList<Integer>();
 		for(int i = 0; i < table.instructionLen; i++) {
 			table.instructions.add(0, (int) readInt(1,  false));
 		}
-		
+		System.out.println("Flags");
 		table.flags = new int[table.pointNum];
 		int flagCount = 0;
 		while(flagCount < table.pointNum) {
 			int flag = (int) readInt(1, false);
+			System.out.println(flag);
 			table.flags[flagCount] = flag;
 			flagCount++;
-			if(((flag >> 4)&1) == 1) {
+			if(((flag >> 3)&1) == 1) {
 				int num = (int) readInt(1, false);
+				System.out.println("Num: " +  num);
 				for(int i = 0; i < num; i++) {
 					table.flags[flagCount] = flag;
 					flagCount++;
@@ -168,25 +216,24 @@ public class TrueTypeScanner {
 			int coord;
 			int flag = table.flags[i];
 			//The glyph is 1 byte(uint8).
-			if(((flag >> 6)&1) == 1) {
+			if(((flag >> 1)&1) == 1) {
 				coord = (int) readInt(1, false);
 				System.out.println(i + ": " + coord);
 				//The sign of the byte.
-				if(((flag >> 3)&1) == 0) {
+				if(((flag >> 4)&1) == 0) {
 					coord *= -1;
 				}
+				coord = prevXCoord + coord;
 			}
 			//The glyph is 2 bytes (int16).
 			else {
-				coord = (int) readInt(2, true);
-				System.out.println(i + ": " + coord);
 				//The x coordinate is equivalent to the previous one.
-				if(((flag >> 3)&1) == 0) {
+				if(((flag >> 4)&1) == 1) {
 					coord = prevXCoord;
 				}
 				//The value is the delta x from the previous point.
 				else {
-					coord = prevXCoord + coord;
+					coord = prevXCoord + (int) readInt(2, true);
 				}
 			}
 			//Put the point in the list.
@@ -201,25 +248,24 @@ public class TrueTypeScanner {
 			int coord;
 			int flag = table.flags[i];
 			//The glyph is 1 byte(uint8).
-			if(((flag >> 5)&1) == 1) {
+			if(((flag >> 2)&1) == 1) {
 				coord = (int) readInt(1, false);
 				System.out.println(i + ": " + coord);
 				//The sign of the byte.
-				if(((flag >> 2)&1) == 0) {
+				if(((flag >> 5)&1) == 0) {
 					coord *= -1;
 				}
+				coord = prevYCoord + coord;
 			}
 			//The glyph is 2 bytes (int16).
 			else {
-				coord = (int) readInt(2, true);
-				System.out.println(i + ": " + coord);
 				//The y coordinate is equivalent to the previous one.
-				if(((flag >> 2)&1) == 0) {
+				if(((flag >> 5)&1) == 1) {
 					coord = prevYCoord;
 				}
 				//The value is the delta y from the previous point.
 				else {
-					coord = prevYCoord + coord;
+					coord = prevYCoord + (int) readInt(2, true);
 				}
 			}
 			//Put the point in the list.
@@ -232,10 +278,9 @@ public class TrueTypeScanner {
 			System.out.println(table.xCoords[i] + ", " + table.yCoords[i]  + ", " + table.flags[i]);
 		}
 		
-		TrueTypeInterpreter interpreter = new TrueTypeInterpreter(table);
-		
-		return res;
+		return table;
 	}
+	
 	
 	public long getLoca(int offset, int index) {
 		//Short format: Half of the actual offset.
@@ -249,6 +294,7 @@ public class TrueTypeScanner {
 			return readInt(4, false);
 		}
 		//Return location of missing glyph if indexToLocFormat is invalid.
+		System.out.println("hi");
 		return 0;
 	}
 	
@@ -275,6 +321,18 @@ public class TrueTypeScanner {
 		}
 		return maps;
 	}
+	
+	/*
+	public Path2D getPath(int[] xCoords, int[] yCoords, int[] flags, int[] contourEnds, int pointNum) {
+		Path2D res = new Path2D.Float();
+		int j = 0;
+		for(int i = 0; i < contourEnds.length; i++) {
+			res.moveTo(xCoords[j], yCoords[j]);
+			while(j < contourEnds[i]) {
+				j++;
+			}
+		}
+	}*/
 	
 	/*
 	 * Actually map the encodings to the glyph indices.
@@ -351,14 +409,12 @@ public class TrueTypeScanner {
 								}
 								res.put(c, value);
 								charCount++;
-								System.out.println(c + ", " + getLoca((int) tableDirectory.get("loca").offset, value));
 							}
 							//Otherwise, just add the character code and idDelta.
 							else {
 								int value = (idDelta[i] + c) % 65536;
 								res.put(c, value);
 								charCount++;
-								System.out.println(c + ", " + getLoca((int) tableDirectory.get("loca").offset, value));
 							}
 						}
 						else {
@@ -404,6 +460,9 @@ public class TrueTypeScanner {
 		}
 		else {
 			res = buf.get() & 0xFF;
+			if(((res >> 7) & 1) == 1) {
+				res ^= 0xFFFFFF00;
+			}
 			for(int i = 1; i < bytes; i ++) {
 				res <<= 8;
 				res += buf.get() & 0xFF;

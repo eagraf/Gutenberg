@@ -111,3 +111,12 @@ class TableDirectory {
 	public long offset;
 	public long length;
 }
+
+/*
+ * Represents a point.
+ */
+class Point {
+	float x;
+	float y;
+	boolean onCurve;
+}

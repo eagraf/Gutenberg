@@ -48,7 +48,7 @@ public class FontStreamScanner extends FilteredScanner {
 		setStream(ref);
 		//Get the font program within the PDF file.
 		ByteBuffer data = getData(-1);
-		TrueTypeScanner ttScanner = new TrueTypeScanner(data);
+		TrueTypeScanner ttScanner = new TrueTypeScanner(data, scanner.gutenbergDrawer.RESOLUTION);
 		return ttScanner.getFont();
 	}
 	
