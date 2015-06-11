@@ -1,11 +1,8 @@
 package graf.ethan.gutenberg.font;
 
-import java.awt.geom.Path2D;
 import java.nio.ByteBuffer;
-import java.util.AbstractQueue;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Queue;
 
 public class TrueTypeScanner {
 	
@@ -24,15 +21,20 @@ public class TrueTypeScanner {
 	
 	private final int resolution;
 	
+	public FontFrame frame;
+	
 	public TrueTypeScanner(ByteBuffer data, int resolution) {
 		this.buf = data;
 		this.resolution = resolution;
 		
+		this.frame = new FontFrame("Font");
 		font = new TrueTypeFont();
 		
 		scanFontDirectory();
 		font.head = getHead((int) tableDirectory.get("head").offset);
 		font.cmap = getCmap((int) tableDirectory.get("cmap").offset);
+		font.cvt = getCVT((int) tableDirectory.get("cvt ").offset, (int) tableDirectory.get("cvt ").length); 
+		font.maxp = getMaxp((int) tableDirectory.get("maxp").offset);
 		font.setUnicodeCmap();
 		
 		getGlyph(97, 12);
@@ -75,6 +77,9 @@ public class TrueTypeScanner {
 		}
 	}
 	
+	/*
+	 * Get the variables in the header of the font file.
+	 */
 	public TableHead getHead(int offset) {
 		buf.position(offset);
 		
@@ -118,17 +123,51 @@ public class TrueTypeScanner {
 	}
 	
 	/*
+	 * Get the Maximum Profile Table
+	 */
+	public TableMaxP getMaxp(int offset) {
+		buf.position(offset);
+		TableMaxP res = new TableMaxP();
+		
+		res.version = (int) readInt(4, false);
+		res.numGlyphs = (int) readInt(2, false);
+		res.maxPoints = (int) readInt(2, false);
+		res.maxContours = (int) readInt(2, false);
+		res.maxComponentPoints = (int) readInt(2, false);
+		res.maxComponentContours = (int) readInt(2, false);
+		res.maxZones = (int) readInt(2, false);
+		res.maxTwilightPoints = (int) readInt(2, false);
+		res.maxStorage = (int) readInt(2, false);
+		res.maxFunctionDefs = (int) readInt(2, false);
+		res.maxInstructionDefs = (int) readInt(2, false);
+		res.maxStackElements = (int) readInt(2, false);
+		res.maxSizeOfInstructions = (int) readInt(2, false);
+		res.maxComponentElements = (int) readInt(2, false);
+		res.maxComponentDepth = (int) readInt(2, false);
+		
+		return res;
+	}
+	
+	/*
 	 * Retrieve a glyph. This involves getting the actual set of points, and then grid fitting them to make the character more readable.
 	 */
 	public Glyph getGlyph(int code, int pointSize) {
 		Glyph res = new Glyph();
-
+		
+		//Step 1: Get the master outline.
 		TableGlyph table = getMaster(code);
+		Point[] master = new Point[table.xCoords.length];
+		for(int i = 0; i < master.length; i++) {
+			master[i] = new Point();
+			master[i].x = table.xCoords[i];
+			master[i].y = table.yCoords[i];
+		}
+		frame.master = master;
+		//Step 2: Scale the points to the specified size.
 		Point[] outline = scalePoints(table.xCoords, table.yCoords, table.flags, table.pointNum, pointSize);
+		frame.scaled = outline;
 		
-		
-		
-		TrueTypeInterpreter interpreter = new TrueTypeInterpreter(table);
+		TrueTypeInterpreter interpreter = new TrueTypeInterpreter(font, table, outline, pointSize, resolution);
 		
 		return res;
 	}
@@ -138,7 +177,9 @@ public class TrueTypeScanner {
 	 */
 	public Point[] scalePoints(int[] xCoords, int[] yCoords, int[] flags, int pointNum, int pointSize) {
 		//The scaling function.
-		int scale = (pointSize * resolution) / (72 * font.head.unitsPerEm);
+		float scale = (pointSize * resolution) / (72f * font.head.unitsPerEm);
+		System.out.println("SCALE: " + scale);
+		System.out.println("UNITS: " + font.head.unitsPerEm);
 		Point[] res = new Point[pointNum];
 		//Iterate through points and apply scale.
 		for(int i = 0; i < pointNum; i++) {
@@ -179,24 +220,22 @@ public class TrueTypeScanner {
 		table.pointNum = 0;
 		for(int i = 0; i < table.contourNum; i ++) {
 			table.contourEnds[i] = (int) readInt(2, false);
-			System.out.println(table.contourEnds[i]);
 		}
 		table.pointNum = table.contourEnds[table.contourNum-1] + 1;
 		
 		table.instructionLen = (int) readInt(2, false);
-		System.out.println(table.instructionLen);
+		System.out.println("Instruction Len: " + table.instructionLen);
  		
 		//The instruction codes for the glyph are scanned in.
 		table.instructions = new ArrayList<Integer>();
 		for(int i = 0; i < table.instructionLen; i++) {
-			table.instructions.add(0, (int) readInt(1,  false));
+			table.instructions.add((int) readInt(1,  false));
 		}
 		System.out.println("Flags");
 		table.flags = new int[table.pointNum];
 		int flagCount = 0;
 		while(flagCount < table.pointNum) {
 			int flag = (int) readInt(1, false);
-			System.out.println(flag);
 			table.flags[flagCount] = flag;
 			flagCount++;
 			if(((flag >> 3)&1) == 1) {
@@ -218,7 +257,6 @@ public class TrueTypeScanner {
 			//The glyph is 1 byte(uint8).
 			if(((flag >> 1)&1) == 1) {
 				coord = (int) readInt(1, false);
-				System.out.println(i + ": " + coord);
 				//The sign of the byte.
 				if(((flag >> 4)&1) == 0) {
 					coord *= -1;
@@ -250,7 +288,6 @@ public class TrueTypeScanner {
 			//The glyph is 1 byte(uint8).
 			if(((flag >> 2)&1) == 1) {
 				coord = (int) readInt(1, false);
-				System.out.println(i + ": " + coord);
 				//The sign of the byte.
 				if(((flag >> 5)&1) == 0) {
 					coord *= -1;
@@ -272,12 +309,6 @@ public class TrueTypeScanner {
 			table.yCoords[i] = coord;
 			prevYCoord = coord;
 		}
-		
-		System.out.println("Points");
-		for(int i = 0; i < table.pointNum; i++) {
-			System.out.println(table.xCoords[i] + ", " + table.yCoords[i]  + ", " + table.flags[i]);
-		}
-		
 		return table;
 	}
 	
@@ -333,6 +364,17 @@ public class TrueTypeScanner {
 			}
 		}
 	}*/
+	
+	public TableCVT getCVT(int offset, int length) {
+		//Set the location to the position of the cvt table.
+		buf.position(offset);
+		TableCVT res = new TableCVT();
+		res.controlValues = new int[length/2];
+		for(int i = 0; i < length/4; i++) {
+			res.controlValues[i] = (int) readInt(2, true);
+		}
+		return res;
+	}
 	
 	/*
 	 * Actually map the encodings to the glyph indices.

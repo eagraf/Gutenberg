@@ -16,7 +16,7 @@ public class GutenbergCore {
     	//Initialize the scanner and drawer
     	GutenbergScanner gScanner = new GutenbergScanner(f);
     	GutenbergDrawer gDrawer = new GutenbergDrawer(gScanner);
-    	gScanner.setDrawer(gDrawer);
+    	gScanner.setDrawer(gDrawer); 
 
     	//Creates the content frame
     	@SuppressWarnings("unused")

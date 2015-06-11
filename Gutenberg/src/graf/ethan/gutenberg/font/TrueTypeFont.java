@@ -10,6 +10,8 @@ public class TrueTypeFont {
 	public TableHead head;
 	public TableCmap[] cmap;
 	public TableCmap uCmap;
+	public TableCVT cvt;
+	public TableMaxP maxp;
 	
 	public int charCount;
 	
@@ -95,10 +97,8 @@ class TableGlyph {
 	public int xCoords[];
 	public int yCoords[];
 	
-	public int getInstruction() {
-		int res = instructions.get(instructions.size()-1);
-		instructions.remove(instructions.size()-1);
-		return res;
+	public int getInstruction(int pointer) {
+		return instructions.get(pointer);
 	}
 }
 
@@ -113,10 +113,91 @@ class TableDirectory {
 }
 
 /*
+ * The CVT Variations Table.
+ */
+class TableCvar {
+	public int version;
+	public int tupleCount;
+	public int offsetToData;
+	public int pointNumbers[];
+	public int tupleData[];
+}
+
+/*
+ * The CVT Table
+ */
+class TableCVT {
+	public int controlValues[];
+}
+
+/*
+ * Maximum Profile Table
+ */
+class TableMaxP {
+	public int version;
+	public int numGlyphs;
+	public int maxPoints;
+	public int maxContours;
+	public int maxComponentPoints;
+	public int maxComponentContours;
+	public int maxZones = 2;
+	public int maxTwilightPoints;
+	public int maxStorage;
+	public int maxFunctionDefs;
+	public int maxInstructionDefs;
+	public int maxStackElements;
+	public int maxSizeOfInstructions;
+	public int maxComponentElements;
+	public int maxComponentDepth;
+}
+
+/*
  * Represents a point.
  */
 class Point {
 	float x;
 	float y;
 	boolean onCurve;
+	
+	public Point() {
+		
+	}
+	
+	public Point(float x, float y) {
+		this.x = x;
+		this.y = y;
+	}
+}
+
+class PointF26Dot6 {
+	int x;
+	int y;
+	boolean onCurve;
+	boolean touchX = false;
+	boolean touchY = false;
+	
+	public PointF26Dot6() {
+		
+	}
+	
+	public PointF26Dot6(int x, int y) {
+		this.x = x;
+		this.y = y;
+	}
+}
+
+class PointF2Dot14 {
+	short x;
+	short y;
+	boolean onCurve;
+	
+	public PointF2Dot14() {
+		
+	}
+	
+	public PointF2Dot14(short x, short y) {
+		this.x = x;
+		this.y = y;
+	}
+
 }
